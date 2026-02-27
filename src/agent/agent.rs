@@ -255,11 +255,10 @@ impl Agent {
         self.history.clear();
     }
 
-    pub fn from_config(config: &Config) -> Result<Self> {
+    pub async fn from_config(config: &Config) -> Result<Self> {
         if let Err(error) = crate::plugins::runtime::initialize_from_config(&config.plugins) {
             tracing::warn!("plugin registry initialization skipped: {error}");
         }
-
         let observer: Arc<dyn Observer> =
             Arc::from(observability::create_observer(&config.observability));
         let runtime: Arc<dyn runtime::RuntimeAdapter> =
@@ -288,7 +287,7 @@ impl Agent {
             None
         };
 
-        let tools = tools::all_tools_with_runtime(
+        let mut tools = tools::all_tools_with_runtime(
             Arc::new(config.clone()),
             &security,
             runtime,
@@ -303,6 +302,7 @@ impl Agent {
             config.api_key.as_deref(),
             config,
         );
+        tools::extend_with_mcp_tools(&config.mcp, &mut tools).await;
 
         let provider_name = config.default_provider.as_deref().unwrap_or("openrouter");
 
@@ -726,7 +726,7 @@ pub async fn run(
     }
     effective_config.default_temperature = temperature;
 
-    let mut agent = Agent::from_config(&effective_config)?;
+    let mut agent = Agent::from_config(&effective_config).await?;
 
     let provider_name = effective_config
         .default_provider

@@ -2510,6 +2510,8 @@ pub async fn run(
         tools_registry.extend(peripheral_tools);
     }
 
+    tools::extend_with_mcp_tools(&config.mcp, &mut tools_registry).await;
+
     // ── Resolve provider ─────────────────────────────────────────
     let provider_name = provider_override
         .as_deref()
@@ -3133,6 +3135,8 @@ pub async fn process_message_with_session(
     let peripheral_tools: Vec<Box<dyn Tool>> =
         crate::peripherals::create_peripheral_tools(&config.peripherals).await?;
     tools_registry.extend(peripheral_tools);
+
+    tools::extend_with_mcp_tools(&config.mcp, &mut tools_registry).await;
 
     let provider_name = config.default_provider.as_deref().unwrap_or("openrouter");
     let model_name = crate::config::resolve_default_model_id(

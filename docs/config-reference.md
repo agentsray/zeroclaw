@@ -548,6 +548,54 @@ The agent will research the codebase before responding to queries like:
 - "Show contents of main.rs"
 - "How many files in the project?"
 
+## `[mcp]`
+
+Model Context Protocol (MCP) client configuration. When enabled, ZeroClaw connects to external MCP servers and exposes their tools to the agent in all entry points (CLI run, gateway, channels).
+
+| Key | Default | Purpose |
+|---|---|---|
+| `enabled` | `false` | Enable MCP tool loading from configured servers |
+| `servers` | `[]` | List of MCP server configurations |
+
+Each entry in `servers` supports:
+
+| Key | Required | Purpose |
+|---|---|---|
+| `name` | yes | Display name and tool prefix (e.g. `filesystem` → tools like `filesystem__read_file`) |
+| `transport` | no | `stdio`, `http`, or `sse` (default: `stdio`) |
+| `command` | stdio | Executable to spawn for stdio transport |
+| `args` | no | Command-line arguments for stdio |
+| `env` | no | Environment variables for stdio (key-value map) |
+| `url` | http/sse | Server URL for HTTP or SSE transport |
+| `headers` | no | HTTP headers for HTTP/SSE (key-value map) |
+| `tool_timeout_secs` | no | Per-call timeout in seconds (max 600, default 180) |
+
+Notes:
+
+- MCP tools are available in `zeroclaw run`, gateway API, and channel daemon when enabled.
+- Connection failures are non-fatal — the process continues with built-in tools only.
+- Tool names are prefixed with server name to avoid collisions: `<server>__<tool>`.
+
+Example (stdio — spawn local process):
+
+```toml
+[mcp]
+enabled = true
+servers = [
+  { name = "filesystem", transport = "stdio", command = "npx", args = ["-y", "@modelcontextprotocol/server-filesystem", "/allowed/path"] }
+]
+```
+
+Example (HTTP):
+
+```toml
+[mcp]
+enabled = true
+servers = [
+  { name = "remote", transport = "http", url = "https://mcp.example.com/sse" }
+]
+```
+
 ## `[runtime]`
 
 | Key | Default | Purpose |

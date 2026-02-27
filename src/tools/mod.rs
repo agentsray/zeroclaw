@@ -158,6 +158,7 @@ pub use xlsx_read::XlsxReadTool;
 pub use auth_profile::ManageAuthProfileTool;
 pub use quota_tools::{CheckProviderQuotaTool, EstimateQuotaCostTool, SwitchProviderTool};
 
+use crate::config::schema::McpConfig;
 use crate::config::{Config, DelegateAgentConfig};
 use crate::memory::Memory;
 use crate::plugins;
@@ -250,6 +251,43 @@ impl Tool for PluginManifestTool {
                 output: String::new(),
                 error: Some(error.to_string()),
             }),
+        }
+    }
+}
+
+/// Extend a tool registry with tools from configured MCP servers.
+/// Non-fatal: on connection failure, logs error and leaves `tools` unchanged.
+/// Call this after building the base tools (e.g. `all_tools_with_runtime`) in all
+/// entry points (CLI run, gateway, channels, agent) so MCP servers from config
+/// are available consistently.
+pub async fn extend_with_mcp_tools(mcp_config: &McpConfig, tools: &mut Vec<Box<dyn Tool>>) {
+    if !mcp_config.enabled || mcp_config.servers.is_empty() {
+        return;
+    }
+    tracing::info!(
+        "Initializing MCP client — {} server(s) configured",
+        mcp_config.servers.len()
+    );
+    match McpRegistry::connect_all(&mcp_config.servers).await {
+        Ok(registry) => {
+            let registry = std::sync::Arc::new(registry);
+            let names = registry.tool_names();
+            let mut registered = 0usize;
+            for name in names {
+                if let Some(def) = registry.get_tool_def(&name).await {
+                    let wrapper = McpToolWrapper::new(name, def, std::sync::Arc::clone(&registry));
+                    tools.push(Box::new(wrapper));
+                    registered += 1;
+                }
+            }
+            tracing::info!(
+                "MCP: {} tool(s) registered from {} server(s)",
+                registered,
+                registry.server_count()
+            );
+        }
+        Err(e) => {
+            tracing::error!("MCP registry failed to initialize: {e:#}");
         }
     }
 }
@@ -707,6 +745,7 @@ pub fn all_tools_with_runtime(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::schema::McpConfig;
     use crate::config::{BrowserConfig, Config, MemoryConfig, WasmRuntimeConfig};
     use crate::runtime::WasmRuntime;
     use tempfile::TempDir;
@@ -717,6 +756,30 @@ mod tests {
             config_path: tmp.path().join("config.toml"),
             ..Config::default()
         }
+    }
+
+    #[tokio::test]
+    async fn extend_with_mcp_tools_noop_when_disabled() {
+        let mcp = McpConfig {
+            enabled: false,
+            servers: vec![],
+        };
+        let mut tools: Vec<Box<dyn Tool>> = vec![Box::new(ApplyPatchTool::new())];
+        let len_before = tools.len();
+        extend_with_mcp_tools(&mcp, &mut tools).await;
+        assert_eq!(tools.len(), len_before);
+    }
+
+    #[tokio::test]
+    async fn extend_with_mcp_tools_noop_when_empty_servers() {
+        let mcp = McpConfig {
+            enabled: true,
+            servers: vec![],
+        };
+        let mut tools: Vec<Box<dyn Tool>> = vec![Box::new(ApplyPatchTool::new())];
+        let len_before = tools.len();
+        extend_with_mcp_tools(&mcp, &mut tools).await;
+        assert_eq!(tools.len(), len_before);
     }
 
     #[test]
