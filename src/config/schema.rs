@@ -382,6 +382,10 @@ pub struct Config {
     #[serde(default, alias = "mcpServers")]
     pub mcp: McpConfig,
 
+    /// Sidecar status connector (`[sidecar_status]`) — Redis publishing for pod lifecycle signaling.
+    #[serde(default)]
+    pub sidecar_status: SidecarStatusConfig,
+
     /// Vision support override for the active provider/model.
     /// - `None` (default): use provider's built-in default
     /// - `Some(true)`: force vision support on (e.g. Ollama running llava)
@@ -731,6 +735,40 @@ pub struct McpServerConfig {
     #[serde(default)]
     pub tool_timeout_secs: Option<u64>,
 }
+
+// ── Sidecar Status Connector ─────────────────────────────────────
+
+/// Sidecar status connector configuration (`[sidecar_status]` section).
+///
+/// When enabled, publishes agent status to Redis so the sidecar can detect when
+/// the agent has completed all work and been idle long enough (signal for pod shutdown).
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, Default)]
+pub struct SidecarStatusConfig {
+    /// Enable status publishing to Redis.
+    #[serde(default)]
+    pub enabled: bool,
+    /// Redis connection URL (e.g. `redis://127.0.0.1/0`).
+    #[serde(default)]
+    pub redis_url: String,
+    /// Agent identifier for Redis key (default: `"default"`).
+    #[serde(default)]
+    pub agent_id: Option<String>,
+    /// Optional user identifier for multi-tenant key namespace.
+    #[serde(default)]
+    pub user_id: Option<String>,
+    /// Key prefix (default: `"zeroclaw:agent"`).
+    #[serde(default)]
+    pub key_prefix: Option<String>,
+    /// Seconds of idle time after last message completion before publishing `completed_awaiting`.
+    #[serde(default = "default_sidecar_idle_timeout_secs")]
+    pub idle_timeout_secs: u64,
+}
+
+fn default_sidecar_idle_timeout_secs() -> u64 {
+    30
+}
+
+// ── MCP ─────────────────────────────────────────────────────────
 
 /// External MCP client configuration (`[mcp]` section).
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, Default)]
@@ -6475,6 +6513,7 @@ impl Default for Config {
             transcription: TranscriptionConfig::default(),
             agents_ipc: AgentsIpcConfig::default(),
             mcp: McpConfig::default(),
+            sidecar_status: SidecarStatusConfig::default(),
             model_support_vision: None,
             wasm: WasmConfig::default(),
         }
@@ -10131,6 +10170,7 @@ ws_url = "ws://127.0.0.1:3002"
             transcription: TranscriptionConfig::default(),
             agents_ipc: AgentsIpcConfig::default(),
             mcp: McpConfig::default(),
+            sidecar_status: SidecarStatusConfig::default(),
             model_support_vision: None,
             wasm: WasmConfig::default(),
         };
@@ -10506,6 +10546,7 @@ tool_dispatcher = "xml"
             transcription: TranscriptionConfig::default(),
             agents_ipc: AgentsIpcConfig::default(),
             mcp: McpConfig::default(),
+            sidecar_status: SidecarStatusConfig::default(),
             model_support_vision: None,
             wasm: WasmConfig::default(),
         };

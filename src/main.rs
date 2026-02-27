@@ -91,6 +91,7 @@ mod security;
 mod service;
 mod skillforge;
 mod skills;
+mod status_connector;
 mod tools;
 mod tunnel;
 mod update;

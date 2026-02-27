@@ -596,6 +596,38 @@ servers = [
 ]
 ```
 
+## `[sidecar_status]`
+
+Publishes agent status to Redis for sidecar/pod lifecycle signaling. When enabled (requires `status-redis` feature), the agent writes status updates to a Redis key that the sidecar can poll or subscribe to.
+
+| Key | Default | Purpose |
+|---|---|---|
+| `enabled` | `false` | Enable Redis status publishing |
+| `redis_url` | `""` | Redis connection URL (e.g. `redis://127.0.0.1/0`) |
+| `agent_id` | `"default"` | Agent identifier for key namespace |
+| `user_id` | unset | Optional user identifier (multi-tenant) |
+| `key_prefix` | `"ray:agent"` | Redis key prefix |
+| `idle_timeout_secs` | `30` | Seconds of idle time after last message completion before publishing `completed_awaiting` |
+
+Notes:
+
+- Requires feature `status-redis` at build time (`cargo build --features status-redis`).
+- Redis key format: `{key_prefix}:{agent_id}:status` or `{key_prefix}:{agent_id}:{user_id}:status` when `user_id` is set.
+- Payload: JSON `{"status": "...", "updated_at": "RFC3339"}`. Status values: `starting`, `working`, `completed_awaiting`.
+- See [sidecar-agent-runbook.md](sidecar-agent-runbook.md) for status model and sidecar integration.
+
+Example:
+
+```toml
+[sidecar_status]
+enabled = true
+redis_url = "redis://127.0.0.1/0"
+agent_id = "pod-abc123"
+user_id = "user-42"
+key_prefix = "ray:agent"
+idle_timeout_secs = 30
+```
+
 ## `[runtime]`
 
 | Key | Default | Purpose |

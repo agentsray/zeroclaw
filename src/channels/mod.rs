@@ -4262,6 +4262,7 @@ async fn run_message_dispatch_loop(
     mut rx: tokio::sync::mpsc::Receiver<traits::ChannelMessage>,
     ctx: Arc<ChannelRuntimeContext>,
     max_in_flight_messages: usize,
+    status_connector: Option<Arc<dyn crate::status_connector::StatusConnector>>,
 ) {
     let semaphore = Arc::new(tokio::sync::Semaphore::new(max_in_flight_messages));
     let mut workers = tokio::task::JoinSet::new();
@@ -4270,16 +4271,25 @@ async fn run_message_dispatch_loop(
         InFlightSenderTaskState,
     >::new()));
     let task_sequence = Arc::new(AtomicU64::new(1));
+    let in_flight_count = Arc::new(std::sync::atomic::AtomicUsize::new(0));
 
     while let Some(msg) = rx.recv().await {
+        if let Some(ref sc) = status_connector {
+            sc.on_new_message();
+        }
+
         let permit = match Arc::clone(&semaphore).acquire_owned().await {
             Ok(permit) => permit,
             Err(_) => break,
         };
 
+        in_flight_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+
         let worker_ctx = Arc::clone(&ctx);
         let in_flight = Arc::clone(&in_flight_by_sender);
         let task_sequence = Arc::clone(&task_sequence);
+        let in_flight_count_w = Arc::clone(&in_flight_count);
+        let status_connector_w = status_connector.clone();
         workers.spawn(async move {
             let _permit = permit;
             let runtime_defaults = runtime_defaults_snapshot(worker_ctx.as_ref());
@@ -4323,6 +4333,13 @@ async fn run_message_dispatch_loop(
                     .is_some_and(|state| state.task_id == task_id)
                 {
                     active.remove(&sender_scope_key);
+                }
+            }
+
+            let prev = in_flight_count_w.fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
+            if prev == 1 {
+                if let Some(ref sc) = status_connector_w {
+                    sc.schedule_idle_completion();
                 }
             }
 
@@ -5740,7 +5757,12 @@ pub async fn start_channels(config: Config) -> Result<()> {
         },
     });
 
-    run_message_dispatch_loop(rx, runtime_ctx, max_in_flight_messages).await;
+    let status_connector = crate::status_connector::create_status_connector(&config.sidecar_status);
+    if let Some(ref sc) = status_connector {
+        sc.publish(crate::status_connector::AgentStatus::Starting).await;
+    }
+
+    run_message_dispatch_loop(rx, runtime_ctx, max_in_flight_messages, status_connector).await;
 
     // Wait for all channel tasks
     for h in handles {
@@ -10204,7 +10226,7 @@ BTC is currently around $65,000 based on latest tool output."#
         drop(tx);
 
         let started = Instant::now();
-        run_message_dispatch_loop(rx, runtime_ctx, 2).await;
+        run_message_dispatch_loop(rx, runtime_ctx, 2, None).await;
         let elapsed = started.elapsed();
 
         assert!(
@@ -10295,7 +10317,7 @@ BTC is currently around $65,000 based on latest tool output."#
             .unwrap();
         });
 
-        run_message_dispatch_loop(rx, runtime_ctx, 4).await;
+        run_message_dispatch_loop(rx, runtime_ctx, 4, None).await;
         send_task.await.unwrap();
 
         let sent_messages = channel_impl.sent_messages.lock().await;
@@ -10397,7 +10419,7 @@ BTC is currently around $65,000 based on latest tool output."#
             .unwrap();
         });
 
-        run_message_dispatch_loop(rx, runtime_ctx, 4).await;
+        run_message_dispatch_loop(rx, runtime_ctx, 4, None).await;
         send_task.await.unwrap();
 
         let sent_messages = channel_impl.sent_messages.lock().await;
