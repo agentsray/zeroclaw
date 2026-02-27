@@ -5,6 +5,7 @@ For operators running ZeroClaw in persistent or production-like environments.
 ## Core Operations
 
 - Day-2 runbook: [../operations-runbook.md](../operations-runbook.md)
+- Sidecar + pod deployment: [../sidecar-agent-runbook.md](../sidecar-agent-runbook.md)
 - Connectivity probes runbook: [connectivity-probes-runbook.md](connectivity-probes-runbook.md)
 - Release runbook: [../release-process.md](../release-process.md)
 - Troubleshooting matrix: [../troubleshooting.md](../troubleshooting.md)

@@ -1,0 +1,265 @@
+# Sidecar Agent Runbook — ZeroClaw in Ephemeral Pods
+
+Полная документация для агента-разработчика сайдкара, запускающего ZeroClaw-агента в контейнерном окружении (pod) с жизненным циклом: подготовка окружения → обработка запроса → сохранение → завершение.
+
+**Last verified:** February 27, 2026.
+
+---
+
+## 1. Архитектура: сайдкар + под
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  Pod (ephemeral)                                                │
+│  ┌───────────────┐    ┌─────────────────────────────────────┐   │
+│  │ Sidecar       │───▶│ ZeroClaw Agent                      │   │
+│  │ - restore env │    │ - channels / gateway                │   │
+│  │ - build config│    │ - process_message / run             │   │
+│  │ - save env    │◀───│ - signal completion                 │   │
+│  └───────────────┘    └─────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────┘
+         │                                    │
+         ▼                                    ▼
+  Storage (persistent)              Channel / Gateway API
+  - workspace files                 - Telegram, Discord, webhook, etc.
+  - config.toml
+  - memory, state
+```
+
+---
+
+## 2. Подготовка окружения из хранилища
+
+### 2.1 Что восстанавливать
+
+Все данные, которые ZeroClaw ожидает в рабочем каталоге и от которых зависит сессия:
+
+| Артефакт | Путь | Описание |
+|----------|------|----------|
+| **Конфигурация** | `config.toml` | Основной конфиг (провайдеры, каналы, память, security) |
+| **Рабочий каталог** | `workspace/` | Файлы проекта, bootstrap, skills |
+| **Память** | `workspace/MEMORY.md`, `workspace/memory/*.md` | Markdown-бэкенд памяти |
+| **Состояние памяти** | `workspace/*.sqlite3` (если sqlite) | SQLite-бэкенд |
+| **Секреты** | `.env`, или через vault | API-ключи, токены |
+| **Skills** | `workspace/skills/` | Установленные навыки |
+| **Состояние** | `state/`, `daemon_state.json` | Опционально: runtime trace, daemon state |
+
+### 2.2 Структура workspace (OpenClaw)
+
+ZeroClaw использует структуру OpenClaw для identity и контекста:
+
+```
+<workspace_dir>/
+├── config.toml              # Основной конфиг (или в родительской директории)
+├── workspace/               # Рабочий каталог (если config рядом)
+│   ├── AGENTS.md            # Инструкции для агента
+│   ├── SOUL.md              # Идентичность
+│   ├── TOOLS.md             # Описание инструментов
+│   ├── IDENTITY.md          # Ролевая модель
+│   ├── USER.md              # Контекст пользователя
+│   ├── MEMORY.md            # Основной файл памяти (markdown)
+│   ├── memory/              # Ежедневные логи
+│   │   └── YYYY-MM-DD.md
+│   ├── skills/              # Навыки и WASM-инструменты
+│   │   └── <skill-name>/
+│   │       └── tools/
+│   ├── state/               # Runtime trace (если включено)
+│   │   └── runtime-trace.jsonl
+│   └── ...
+```
+
+### 2.3 Разрешение конфигурации и workspace
+
+Порядок разрешения при старте ZeroClaw (от высшего приоритета):
+
+1. **`ZEROCLAW_CONFIG_DIR`** (env) — явная директория с config.toml.
+2. **`ZEROCLAW_WORKSPACE`** (env) — корень workspace (если задан без config_dir).
+3. **`~/.zeroclaw/active_workspace.toml`** — маркер активного workspace (содержит `config_dir`).
+4. **`~/.zeroclaw/config.toml`** и `~/.zeroclaw/workspace` — значения по умолчанию.
+
+Для сайдкара рекомендуется явно задавать:
+
+```bash
+export ZEROCLAW_WORKSPACE=/path/to/restored/workspace
+# или
+export ZEROCLAW_CONFIG_DIR=/path/to/restored/config_dir
+```
+
+Если `config_dir` = `/app/zeroclaw`, то:
+- `config_path` = `/app/zeroclaw/config.toml`
+- `workspace_dir` = `/app/zeroclaw/workspace` (или как указано в `[storage]` / legacy)
+
+### 2.4 Альтернативная схема: config в workspace
+
+При `workspace/config.toml` и `workspace/workspace` (или `workspace` как корень):
+- `config_path` = `workspace/config.toml`
+- `workspace_dir` = `workspace/` (рабочий каталог)
+
+Сайдкар должен восстановить ровно ту структуру, которую ожидала последняя сессия.
+
+### 2.5 Memory backends
+
+| Backend | Хранилище |
+|---------|-----------|
+| `markdown` | `workspace/MEMORY.md`, `workspace/memory/YYYY-MM-DD.md` |
+| `sqlite` | Файл в `workspace_dir` или путь из `memory.path` |
+| `lucid` | SQLite + markdown |
+
+При восстановлении убедитесь, что все файлы памяти и БД присутствуют и доступны для записи.
+
+### 2.6 Чеклист восстановления
+
+```
+[ ] Скопировать config.toml в целевую директорию
+[ ] Восстановить workspace/ целиком (bootstrap, skills, memory)
+[ ] Восстановить .env или инжектировать секреты
+[ ] Установить ZEROCLAW_WORKSPACE или ZEROCLAW_CONFIG_DIR
+[ ] Проверить права на запись (workspace, state)
+[ ] При sqlite/lucid — проверить целостность БД
+```
+
+---
+
+## 3. Сайдкар собирает пользовательские настройки
+
+Сайдкар должен подготовить конфиг и окружение под конкретного пользователя:
+
+1. **Подстановка переменных** — API-ключи, токены каналов из хранилища секретов.
+2. **Слияние конфигов** — базовый `config.toml` + пользовательские overrides (например, `default_model`, `allowed_users` в канале).
+3. **Канал** — включить только нужный канал (Telegram, Discord, webhook и т.д.) и настроить credentials.
+4. **Workspace** — смонтировать/восстановить именно пользовательский workspace.
+
+Критично: ZeroClaw читает конфиг при старте. Все изменения должны быть записаны до запуска `zeroclaw daemon` или `zeroclaw run`.
+
+---
+
+## 4. ZeroClaw агент и канал
+
+### 4.1 Запуск с каналом
+
+Типичный запуск для каналов:
+
+```bash
+zeroclaw daemon --host 0.0.0.0 --port 8080
+```
+
+Daemon поднимает gateway и каналы. Каналы слушают входящие сообщения и передают их в общую очередь.
+
+### 4.2 Альтернатива: Gateway + POST /api/chat
+
+Для «одного запроса — один ответ» без долгоживущего listen:
+
+```bash
+zeroclaw daemon --host 0.0.0.0 --port 8080
+# Сайдкар делает:
+curl -X POST http://localhost:8080/api/chat \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <token>" \
+  -d '{"message": "user request"}'
+```
+
+Ответ HTTP приходит когда обработка завершена. Это удобно для сайдкара: завершение HTTP-запроса = завершение обработки.
+
+### 4.3 Несколько пользователей в канале
+
+#### Ключи сессий
+
+- **`conversation_history_key`**: `{channel}_{thread_id?}_{sender}` — изоляция истории по отправителю и треду.
+- **`interruption_scope_key`**: `{channel}_{reply_target}_{sender}` — область отмены (Telegram).
+
+#### Параллельность
+
+- Сообщения от **разных отправителей** обрабатываются параллельно (ограничение — `max_in_flight_messages`).
+- Сообщения от **одного отправителя**:
+  - **Без `interrupt_on_new_message`**: ставятся в очередь и обрабатываются по одному.
+  - **С `interrupt_on_new_message` (Telegram)**: новое сообщение от того же пользователя отменяет текущее (cancellation token), новое обрабатывается.
+
+#### Сообщения после начала обработки первого
+
+- **Разные пользователи** — все идут в общую очередь; обрабатываются параллельно в пределах лимита.
+- **Один пользователь** — при `interrupt_on_new_message` старый запрос отменяется; при отключённой опции — ждёт завершения текущего, затем обрабатывается.
+
+Конфиг Telegram:
+
+```toml
+[channels.telegram]
+interrupt_on_new_message = true   # новое сообщение отменяет текущее
+```
+
+### 4.4 Лимиты
+
+- `max_in_flight_messages` = `channel_count * 4` (в пределах 2–16).
+- `agent.max_tool_iterations` — лимит итераций инструментов на сообщение.
+
+---
+
+## 5. Сигнал завершения обработки
+
+### 5.1 В каналах (reactions)
+
+Когда обработка завершена:
+
+1. С исходного сообщения снимается реакция «👀» (typing/processing).
+2. Добавляется реакция «✅» (успех) или «⚠️» (ошибка).
+3. Ответ отправляется в канал через `channel.send()`.
+
+Каналы с поддержкой `add_reaction` / `remove_reaction` (Telegram, Discord и др.) визуально показывают завершение.
+
+### 5.2 В Gateway (POST /api/chat)
+
+- HTTP-ответ возвращается по завершении `process_message()`.
+- Для сайдкара: **получение HTTP 200 + body = завершение обработки**.
+
+### 5.3 Как сайдкару понять «готово»
+
+| Режим | Как понять завершение |
+|-------|------------------------|
+| **Gateway /api/chat** | HTTP-ответ получен ✅ |
+| **Gateway WebSocket /ws/chat** | Сообщение `type: "done"` в WebSocket |
+| **Каналы (daemon)** | Daemon работает непрерывно; явного «готово» в стандартном API нет |
+
+Для модели «под на один запрос» рекомендуется:
+
+1. **Gateway /api/chat** — сайдкар дергает `POST /api/chat`, дожидается ответа и считает обработку завершённой.
+2. **Custom channel** — реализовать канал, который по одному сообщению вызывает agent и по завершении отправляет callback сайдкару.
+3. **Файловый/сокетный контракт** — агент по завершении пишет в файл или сокет (потребует изменений в коде или wrapper).
+
+---
+
+## 6. После обработки: сохранение и выход
+
+### 6.1 Что сохранять обратно в хранилище
+
+После завершения обработки сайдкар должен сохранить:
+
+| Артефакт | Комментарий |
+|----------|-------------|
+| `workspace/` | MEMORY.md, memory/*.md, изменённые файлы |
+| `*.sqlite3` | База памяти (sqlite/lucid) |
+| `config.toml` | При изменении конфига |
+| `state/` | Runtime trace (если нужен для отладки) |
+| `.env` | Не рекомендуется — секреты через vault |
+
+### 6.2 Жизненный цикл пода
+
+1. Под стартует, сайдкар восстанавливает окружение.
+2. Сайдкар собирает конфиг пользователя.
+3. Запускается ZeroClaw (daemon или run).
+4. Обработка сообщений (через канал или `/api/chat`).
+5. Сайдкар фиксирует завершение (HTTP-ответ, callback и т.п.).
+6. Сайдкар сохраняет workspace и состояние в хранилище.
+7. Под завершает работу, окружение очищается.
+
+### 6.3 Завершение процесса
+
+- При использовании `POST /api/chat`: сайдкар может держать gateway живым для нескольких запросов или завершать процесс после первого.
+- При каналах: daemon сам не завершается; сайдкар должен решить, когда вызвать shutdown (например, по таймауту, по счётчику сообщений или внешнему сигналу).
+
+---
+
+## 7. Ссылки
+
+- [config-reference.md](config-reference.md) — конфиг ZeroClaw
+- [channels-reference.md](channels-reference.md) — каналы
+- [commands-reference.md](commands-reference.md) — CLI
+- [operations-runbook.md](operations-runbook.md) — операционные процедуры

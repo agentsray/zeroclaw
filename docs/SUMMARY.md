@@ -56,6 +56,7 @@ Last refreshed: **February 28, 2026**.
 
 - [operations/README.md](operations/README.md)
 - [operations-runbook.md](operations-runbook.md)
+- [sidecar-agent-runbook.md](sidecar-agent-runbook.md) — Sidecar + pod deployment (ephemeral agent)
 - [operations/connectivity-probes-runbook.md](operations/connectivity-probes-runbook.md)
 - [release-process.md](release-process.md)
 - [troubleshooting.md](troubleshooting.md)
