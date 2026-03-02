@@ -783,6 +783,18 @@ mod tests {
     }
 
     #[test]
+    fn add_bg_tools_appends_bg_run_and_bg_status() {
+        let tools: Vec<Box<dyn Tool>> = vec![Box::new(ApplyPatchTool::new())];
+        let len_before = tools.len();
+        let (extended, _bg_job_store) = add_bg_tools(tools);
+        assert_eq!(extended.len(), len_before + 2);
+        let names: Vec<&str> = extended.iter().map(|t| t.name()).collect();
+        assert!(names.contains(&"apply_patch"));
+        assert!(names.contains(&"bg_run"));
+        assert!(names.contains(&"bg_status"));
+    }
+
+    #[test]
     fn default_tools_has_expected_count() {
         let security = Arc::new(SecurityPolicy::default());
         let tools = default_tools(security);

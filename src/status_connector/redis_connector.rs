@@ -52,6 +52,28 @@ pub struct RedisStatusConnector {
     cancel_idle: Arc<Mutex<Option<tokio_util::sync::CancellationToken>>>,
 }
 
+/// Build Redis key from config (used by `new` and exposed for tests).
+#[cfg(test)]
+fn build_key(config: &SidecarStatusConfig) -> String {
+    let agent_id = config
+        .agent_id
+        .as_deref()
+        .filter(|s| !s.trim().is_empty())
+        .unwrap_or("default")
+        .to_string();
+    let user_id = config.user_id.as_ref().filter(|s| !s.trim().is_empty());
+    let key_prefix = config
+        .key_prefix
+        .as_deref()
+        .filter(|s| !s.trim().is_empty())
+        .unwrap_or("zeroclaw:agent");
+    if let Some(uid) = user_id {
+        format!("{}:{}:{}:status", key_prefix, agent_id, uid)
+    } else {
+        format!("{}:{}:status", key_prefix, agent_id)
+    }
+}
+
 impl RedisStatusConnector {
     pub fn new(config: &SidecarStatusConfig) -> anyhow::Result<Self> {
         let agent_id = config
@@ -134,5 +156,62 @@ impl StatusConnector for RedisStatusConnector {
         tokio::spawn(async move {
             publish_to_redis(&redis_url, &key, AgentStatus::Working).await;
         });
+    }
+}
+
+#[cfg(all(test, feature = "status-redis"))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn redis_status_connector_key_with_defaults() {
+        let config = SidecarStatusConfig {
+            enabled: true,
+            redis_url: "redis://127.0.0.1/0".to_string(),
+            agent_id: None,
+            user_id: None,
+            key_prefix: None,
+            idle_timeout_secs: 30,
+        };
+        assert_eq!(build_key(&config), "zeroclaw:agent:default:status");
+    }
+
+    #[test]
+    fn redis_status_connector_key_with_agent_and_user() {
+        let config = SidecarStatusConfig {
+            enabled: true,
+            redis_url: "redis://localhost/1".to_string(),
+            agent_id: Some("agent-a".to_string()),
+            user_id: Some("user-1".to_string()),
+            key_prefix: Some("zc".to_string()),
+            idle_timeout_secs: 60,
+        };
+        assert_eq!(build_key(&config), "zc:agent-a:user-1:status");
+    }
+
+    #[test]
+    fn redis_status_connector_key_uses_default_for_empty_agent_id() {
+        let config = SidecarStatusConfig {
+            enabled: true,
+            redis_url: "redis://x/0".to_string(),
+            agent_id: Some("".to_string()),
+            user_id: None,
+            key_prefix: None,
+            idle_timeout_secs: 30,
+        };
+        assert_eq!(build_key(&config), "zeroclaw:agent:default:status");
+    }
+
+    #[test]
+    fn redis_status_connector_new_succeeds_with_valid_config() {
+        let config = SidecarStatusConfig {
+            enabled: true,
+            redis_url: "redis://127.0.0.1/0".to_string(),
+            agent_id: None,
+            user_id: None,
+            key_prefix: None,
+            idle_timeout_secs: 30,
+        };
+        assert!(RedisStatusConnector::new(&config).is_ok());
     }
 }

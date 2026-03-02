@@ -43,3 +43,39 @@ pub fn create_status_connector(
         None
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::SidecarStatusConfig;
+
+    #[test]
+    fn create_status_connector_returns_none_when_disabled() {
+        let config = SidecarStatusConfig {
+            enabled: false,
+            redis_url: "redis://127.0.0.1/0".to_string(),
+            ..SidecarStatusConfig::default()
+        };
+        assert!(create_status_connector(&config).is_none());
+    }
+
+    #[test]
+    fn create_status_connector_returns_none_when_empty_redis_url() {
+        let config = SidecarStatusConfig {
+            enabled: true,
+            redis_url: String::new(),
+            ..SidecarStatusConfig::default()
+        };
+        assert!(create_status_connector(&config).is_none());
+    }
+
+    #[test]
+    fn create_status_connector_returns_none_when_redis_url_whitespace_only() {
+        let config = SidecarStatusConfig {
+            enabled: true,
+            redis_url: "   ".to_string(),
+            ..SidecarStatusConfig::default()
+        };
+        assert!(create_status_connector(&config).is_none());
+    }
+}
