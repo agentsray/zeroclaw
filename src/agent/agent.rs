@@ -1029,8 +1029,8 @@ mod tests {
         assert_eq!(seen.as_slice(), &["hint:fast".to_string()]);
     }
 
-    #[test]
-    fn from_config_loads_plugin_declared_tools() {
+    #[tokio::test]
+    async fn from_config_loads_plugin_declared_tools() {
         let tmp = TempDir::new().expect("temp dir");
         let plugin_dir = tmp.path().join("plugins");
         std::fs::create_dir_all(&plugin_dir).expect("create plugin dir");
@@ -1062,10 +1062,12 @@ description = "plugin tool exposed for from_config tests"
             ..crate::config::PluginsConfig::default()
         };
 
-        let agent = Agent::from_config(&config).expect("agent from config should build");
+        let agent = Agent::from_config(&config)
+            .await
+            .expect("agent from config should build");
         assert!(agent
             .tools
             .iter()
-            .any(|tool| tool.name() == "__agent_from_config_plugin_tool"));
+            .any(|tool: &_| tool.name() == "__agent_from_config_plugin_tool"));
     }
 }
