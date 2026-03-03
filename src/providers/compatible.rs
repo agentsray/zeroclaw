@@ -1182,6 +1182,50 @@ impl OpenAiCompatibleProvider {
         }
     }
 
+    /// Convert native messages with tool_calls/tool roles into plain text
+    /// messages that Gemini API can accept. Gemini's OpenAI-compat layer does
+    /// not support `tool_calls` in assistant history or `role: "tool"` messages.
+    fn flatten_tool_history_for_gemini(messages: &mut Vec<NativeMessage>) {
+        for msg in messages.iter_mut() {
+            if msg.role == "assistant" {
+                if let Some(ref tool_calls) = msg.tool_calls {
+                    let mut parts: Vec<String> = Vec::new();
+                    if let Some(MessageContent::Text(ref text)) = msg.content {
+                        if !text.is_empty() {
+                            parts.push(text.clone());
+                        }
+                    }
+                    for tc in tool_calls {
+                        let name = tc
+                            .function
+                            .as_ref()
+                            .and_then(|f| f.name.as_deref())
+                            .or(tc.name.as_deref())
+                            .unwrap_or("unknown");
+                        let args = tc
+                            .function
+                            .as_ref()
+                            .and_then(|f| f.arguments.as_deref())
+                            .or(tc.arguments.as_deref())
+                            .unwrap_or("{}");
+                        parts.push(format!("[Called tool `{name}` with: {args}]"));
+                    }
+                    msg.content = Some(MessageContent::Text(parts.join("\n")));
+                    msg.tool_calls = None;
+                }
+            } else if msg.role == "tool" {
+                let content_text = match &msg.content {
+                    Some(MessageContent::Text(t)) => t.clone(),
+                    _ => String::new(),
+                };
+                msg.role = "user".to_string();
+                msg.content =
+                    Some(MessageContent::Text(format!("[Tool result]\n{content_text}")));
+                msg.tool_call_id = None;
+            }
+        }
+    }
+
     fn chat_completions_fallback_provider(&self) -> Self {
         let mut provider = self.clone();
         provider.api_mode = CompatibleApiMode::OpenAiChatCompletions;
@@ -2384,12 +2428,16 @@ impl Provider for OpenAiCompatibleProvider {
         } else {
             tools.as_ref().map(|_| "auto".to_string())
         };
+        let mut native_messages = Self::convert_messages_for_native(
+            &effective_messages,
+            !self.merge_system_into_user,
+        );
+        if gemini_compat {
+            Self::flatten_tool_history_for_gemini(&mut native_messages);
+        }
         let native_request = NativeChatRequest {
             model: model.to_string(),
-            messages: Self::convert_messages_for_native(
-                &effective_messages,
-                !self.merge_system_into_user,
-            ),
+            messages: native_messages,
             temperature,
             max_tokens: self.effective_max_tokens(),
             stream: Some(false),
