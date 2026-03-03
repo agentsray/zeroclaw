@@ -319,12 +319,14 @@ mod tests {
         let tool =
             OpenClawMigrationTool::new(Arc::new(config), Arc::new(SecurityPolicy::default()));
 
+        // include_memory: null defaults to true; include_config: false avoids
+        // dependency on ~/.openclaw/openclaw.json and target config.toml
         let result = tool
             .execute(json!({
                 "action": "preview",
                 "source_workspace": source.path().display().to_string(),
                 "include_memory": null,
-                "include_config": null
+                "include_config": false
             }))
             .await
             .unwrap();
