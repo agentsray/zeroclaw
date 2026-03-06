@@ -1192,57 +1192,58 @@ description = "plugin tool exposed for from_config tests"
         config
     }
 
-    #[test]
-    fn from_config_primary_allowlist_filters_tools() {
+    #[tokio::test]
+    async fn from_config_primary_allowlist_filters_tools() {
         let _guard = crate::test_locks::PLUGIN_RUNTIME_LOCK.lock();
         let mut config = base_from_config_for_tool_filter_tests();
         config.agent.allowed_tools = vec!["shell".to_string()];
 
-        let agent = Agent::from_config(&config).expect("agent should build");
-        let names: Vec<&str> = agent.tools.iter().map(|tool| tool.name()).collect();
+        let agent = Agent::from_config(&config).await.expect("agent should build");
+        let names: Vec<&str> = agent.tools.iter().map(|tool: &_| tool.name()).collect();
         assert_eq!(names, vec!["shell"]);
     }
 
-    #[test]
-    fn from_config_empty_allowlist_preserves_default_toolset() {
+    #[tokio::test]
+    async fn from_config_empty_allowlist_preserves_default_toolset() {
         let _guard = crate::test_locks::PLUGIN_RUNTIME_LOCK.lock();
         let config = base_from_config_for_tool_filter_tests();
 
-        let agent = Agent::from_config(&config).expect("agent should build");
-        let names: Vec<&str> = agent.tools.iter().map(|tool| tool.name()).collect();
+        let agent = Agent::from_config(&config).await.expect("agent should build");
+        let names: Vec<&str> = agent.tools.iter().map(|tool: &_| tool.name()).collect();
         assert!(names.contains(&"shell"));
         assert!(names.contains(&"file_read"));
     }
 
-    #[test]
-    fn from_config_primary_denylist_removes_tools() {
+    #[tokio::test]
+    async fn from_config_primary_denylist_removes_tools() {
         let _guard = crate::test_locks::PLUGIN_RUNTIME_LOCK.lock();
         let mut config = base_from_config_for_tool_filter_tests();
         config.agent.denied_tools = vec!["shell".to_string()];
 
-        let agent = Agent::from_config(&config).expect("agent should build");
-        let names: Vec<&str> = agent.tools.iter().map(|tool| tool.name()).collect();
+        let agent = Agent::from_config(&config).await.expect("agent should build");
+        let names: Vec<&str> = agent.tools.iter().map(|tool: &_| tool.name()).collect();
         assert!(!names.contains(&"shell"));
     }
 
-    #[test]
-    fn from_config_unmatched_allowlist_entry_is_graceful() {
+    #[tokio::test]
+    async fn from_config_unmatched_allowlist_entry_is_graceful() {
         let _guard = crate::test_locks::PLUGIN_RUNTIME_LOCK.lock();
         let mut config = base_from_config_for_tool_filter_tests();
         config.agent.allowed_tools = vec!["missing_tool".to_string()];
 
-        let agent = Agent::from_config(&config).expect("agent should build with empty toolset");
+        let agent = Agent::from_config(&config).await.expect("agent should build with empty toolset");
         assert!(agent.tools.is_empty());
     }
 
-    #[test]
-    fn from_config_conflicting_allow_and_deny_fails_fast() {
+    #[tokio::test]
+    async fn from_config_conflicting_allow_and_deny_fails_fast() {
         let _guard = crate::test_locks::PLUGIN_RUNTIME_LOCK.lock();
         let mut config = base_from_config_for_tool_filter_tests();
         config.agent.allowed_tools = vec!["shell".to_string()];
         config.agent.denied_tools = vec!["shell".to_string()];
 
         let err = Agent::from_config(&config)
+            .await
             .err()
             .expect("expected filter conflict");
         assert!(err

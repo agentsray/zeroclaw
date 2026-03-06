@@ -7,6 +7,7 @@ Structured reference index for commands, providers, channels, config, and integr
 - Commands by workflow: [../commands-reference.md](../commands-reference.md)
 - Provider IDs / aliases / env vars: [../providers-reference.md](../providers-reference.md)
 - Channel setup + allowlists: [../channels-reference.md](../channels-reference.md)
+- Channels connection params + allowlists (quick ref): [../channels-connection-reference.md](../channels-connection-reference.md)
 - Config defaults and keys: [../config-reference.md](../config-reference.md)
 
 ## Provider & Integration Extensions

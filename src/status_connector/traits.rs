@@ -17,24 +17,12 @@ pub enum AgentStatus {
 }
 
 impl AgentStatus {
-    pub fn as_str(&self) -> &'static str {
+    pub fn as_str(self) -> &'static str {
         match self {
             Self::Starting => "starting",
             Self::Working => "working",
             Self::CompletedAwaiting => "completed_awaiting",
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn agent_status_as_str_maps_correctly() {
-        assert_eq!(AgentStatus::Starting.as_str(), "starting");
-        assert_eq!(AgentStatus::Working.as_str(), "working");
-        assert_eq!(AgentStatus::CompletedAwaiting.as_str(), "completed_awaiting");
     }
 }
 
@@ -52,4 +40,16 @@ pub trait StatusConnector: Send + Sync {
     /// Called when a new message is received. Cancels any pending idle completion
     /// and publishes `Working`.
     fn on_new_message(&self);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn agent_status_as_str_maps_correctly() {
+        assert_eq!(AgentStatus::Starting.as_str(), "starting");
+        assert_eq!(AgentStatus::Working.as_str(), "working");
+        assert_eq!(AgentStatus::CompletedAwaiting.as_str(), "completed_awaiting");
+    }
 }

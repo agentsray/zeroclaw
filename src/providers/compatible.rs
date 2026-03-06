@@ -1202,7 +1202,7 @@ impl OpenAiCompatibleProvider {
     /// Convert native messages with tool_calls/tool roles into plain text
     /// messages that Gemini API can accept. Gemini's OpenAI-compat layer does
     /// not support `tool_calls` in assistant history or `role: "tool"` messages.
-    fn flatten_tool_history_for_gemini(messages: &mut Vec<NativeMessage>) {
+    fn flatten_tool_history_for_gemini(messages: &mut [NativeMessage]) {
         for msg in messages.iter_mut() {
             if msg.role == "assistant" {
                 if let Some(ref tool_calls) = msg.tool_calls {

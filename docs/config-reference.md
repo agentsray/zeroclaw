@@ -681,7 +681,7 @@ Publishes agent status to Redis for sidecar/pod lifecycle signaling. When enable
 | `redis_url` | `""` | Redis connection URL (e.g. `redis://127.0.0.1/0`) |
 | `agent_id` | `"default"` | Agent identifier for key namespace |
 | `user_id` | unset | Optional user identifier (multi-tenant) |
-| `key_prefix` | `"ray:agent"` | Redis key prefix |
+| `key_prefix` | `"zeroclaw:agent"` | Redis key prefix |
 | `idle_timeout_secs` | `30` | Seconds of idle time after last message completion before publishing `completed_awaiting` |
 
 Notes:
@@ -699,7 +699,7 @@ enabled = true
 redis_url = "redis://127.0.0.1/0"
 agent_id = "pod-abc123"
 user_id = "user-42"
-key_prefix = "ray:agent"
+key_prefix = "zeroclaw:agent"
 idle_timeout_secs = 30
 ```
 

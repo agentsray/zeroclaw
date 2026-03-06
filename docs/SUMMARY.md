@@ -44,6 +44,7 @@ Last refreshed: **February 28, 2026**.
 - [cron-scheduling.md](cron-scheduling.md)
 - [providers-reference.md](providers-reference.md)
 - [channels-reference.md](channels-reference.md)
+- [channels-connection-reference.md](channels-connection-reference.md) — channels, connection params, allowlists (agent/dev quick ref)
 - [nextcloud-talk-setup.md](nextcloud-talk-setup.md)
 - [config-reference.md](config-reference.md)
 - [wasm-tools-guide.md](wasm-tools-guide.md)
