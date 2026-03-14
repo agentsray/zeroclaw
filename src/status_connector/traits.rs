@@ -14,6 +14,9 @@ pub enum AgentStatus {
     /// Agent has completed all in-flight work and been idle for `idle_timeout_secs`.
     /// Safe for sidecar to consider pod termination.
     CompletedAwaiting,
+
+    /// Agent received a shutdown signal and is draining in-flight work.
+    ShuttingDown,
 }
 
 impl AgentStatus {
@@ -22,6 +25,7 @@ impl AgentStatus {
             Self::Starting => "starting",
             Self::Working => "working",
             Self::CompletedAwaiting => "completed_awaiting",
+            Self::ShuttingDown => "shutting_down",
         }
     }
 }
@@ -54,5 +58,6 @@ mod tests {
             AgentStatus::CompletedAwaiting.as_str(),
             "completed_awaiting"
         );
+        assert_eq!(AgentStatus::ShuttingDown.as_str(), "shutting_down");
     }
 }

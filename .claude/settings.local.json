@@ -7,7 +7,10 @@
       "Bash(git checkout:*)",
       "Bash(cargo check:*)",
       "Bash(git reset:*)",
-      "mcp__ctxfy__sdk_execute"
+      "mcp__ctxfy__sdk_execute",
+      "Bash(cargo test:*)",
+      "Bash(cargo fmt:*)",
+      "Bash(cargo clippy:*)"
     ]
   }
 }

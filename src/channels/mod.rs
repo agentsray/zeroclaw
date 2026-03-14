@@ -2399,6 +2399,7 @@ async fn run_message_dispatch_loop(
     mut rx: tokio::sync::mpsc::Receiver<traits::ChannelMessage>,
     ctx: Arc<ChannelRuntimeContext>,
     max_in_flight_messages: usize,
+    shutdown_token: CancellationToken,
 ) {
     let semaphore = Arc::new(tokio::sync::Semaphore::new(max_in_flight_messages));
     let mut workers = tokio::task::JoinSet::new();
@@ -2411,7 +2412,20 @@ async fn run_message_dispatch_loop(
     #[cfg(not(target_has_atomic = "64"))]
     let task_sequence = Arc::new(AtomicU32::new(1));
 
-    while let Some(msg) = rx.recv().await {
+    loop {
+        let msg = tokio::select! {
+            () = shutdown_token.cancelled() => {
+                tracing::info!("Channel dispatch loop received shutdown — stop accepting new messages");
+                break;
+            }
+            msg = rx.recv() => {
+                match msg {
+                    Some(m) => m,
+                    None => break,
+                }
+            }
+        };
+
         let permit = match Arc::clone(&semaphore).acquire_owned().await {
             Ok(permit) => permit,
             Err(_) => break,
@@ -2474,9 +2488,15 @@ async fn run_message_dispatch_loop(
         }
     }
 
+    // Drain in-flight workers — let them finish processing.
+    let in_flight_count = workers.len();
+    if in_flight_count > 0 {
+        tracing::info!("Draining {in_flight_count} in-flight message(s)...");
+    }
     while let Some(result) = workers.join_next().await {
         log_worker_join_result(result);
     }
+    tracing::info!("All in-flight messages drained");
 }
 
 /// Load OpenClaw format bootstrap files into the prompt.
@@ -3412,7 +3432,7 @@ pub async fn doctor_channels(config: Config) -> Result<()> {
 
 /// Start all configured channels and route messages to the agent
 #[allow(clippy::too_many_lines)]
-pub async fn start_channels(config: Config) -> Result<()> {
+pub async fn start_channels(config: Config, shutdown_token: CancellationToken) -> Result<()> {
     let provider_name = resolved_default_provider(&config);
     let provider_runtime_options = providers::ProviderRuntimeOptions {
         auth_profile_override: None,
@@ -3806,7 +3826,7 @@ pub async fn start_channels(config: Config) -> Result<()> {
         ack_reactions: config.channels_config.ack_reactions,
     });
 
-    run_message_dispatch_loop(rx, runtime_ctx, max_in_flight_messages).await;
+    run_message_dispatch_loop(rx, runtime_ctx, max_in_flight_messages, shutdown_token).await;
 
     // Wait for all channel tasks
     for h in handles {
@@ -5646,7 +5666,7 @@ BTC is currently around $65,000 based on latest tool output."#
         drop(tx);
 
         let started = Instant::now();
-        run_message_dispatch_loop(rx, runtime_ctx, 2).await;
+        run_message_dispatch_loop(rx, runtime_ctx, 2, CancellationToken::new()).await;
         let elapsed = started.elapsed();
 
         assert!(
@@ -5733,7 +5753,7 @@ BTC is currently around $65,000 based on latest tool output."#
             .unwrap();
         });
 
-        run_message_dispatch_loop(rx, runtime_ctx, 4).await;
+        run_message_dispatch_loop(rx, runtime_ctx, 4, CancellationToken::new()).await;
         send_task.await.unwrap();
 
         let sent_messages = channel_impl.sent_messages.lock().await;
@@ -5834,7 +5854,7 @@ BTC is currently around $65,000 based on latest tool output."#
             .unwrap();
         });
 
-        run_message_dispatch_loop(rx, runtime_ctx, 4).await;
+        run_message_dispatch_loop(rx, runtime_ctx, 4, CancellationToken::new()).await;
         send_task.await.unwrap();
 
         let sent_messages = channel_impl.sent_messages.lock().await;
@@ -5932,7 +5952,7 @@ BTC is currently around $65,000 based on latest tool output."#
             .unwrap();
         });
 
-        run_message_dispatch_loop(rx, runtime_ctx, 4).await;
+        run_message_dispatch_loop(rx, runtime_ctx, 4, CancellationToken::new()).await;
         send_task.await.unwrap();
 
         let sent_messages = channel_impl.sent_messages.lock().await;

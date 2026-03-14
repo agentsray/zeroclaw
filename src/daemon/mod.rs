@@ -5,8 +5,10 @@ use std::future::Future;
 use std::path::PathBuf;
 use tokio::task::JoinHandle;
 use tokio::time::Duration;
+use tokio_util::sync::CancellationToken;
 
 const STATUS_FLUSH_SECONDS: u64 = 5;
+const GRACEFUL_SHUTDOWN_TIMEOUT_SECS: u64 = 30;
 
 /// Wait for shutdown signal (SIGINT or SIGTERM)
 async fn wait_for_shutdown_signal() -> Result<()> {
@@ -43,6 +45,8 @@ pub async fn run(config: Config, host: String, port: u16) -> Result<()> {
         .channel_max_backoff_secs
         .max(initial_backoff);
 
+    let shutdown_token = CancellationToken::new();
+
     crate::health::mark_component_ok("daemon");
 
     if config.heartbeat.enabled {
@@ -51,15 +55,20 @@ pub async fn run(config: Config, host: String, port: u16) -> Result<()> {
                 .await;
     }
 
-    let mut handles: Vec<JoinHandle<()>> = vec![spawn_state_writer(config.clone())];
+    let mut handles: Vec<JoinHandle<()>> = vec![spawn_state_writer(
+        config.clone(),
+        shutdown_token.child_token(),
+    )];
 
     {
         let gateway_cfg = config.clone();
         let gateway_host = host.clone();
+        let token = shutdown_token.child_token();
         handles.push(spawn_component_supervisor(
             "gateway",
             initial_backoff,
             max_backoff,
+            token,
             move || {
                 let cfg = gateway_cfg.clone();
                 let host = gateway_host.clone();
@@ -71,13 +80,16 @@ pub async fn run(config: Config, host: String, port: u16) -> Result<()> {
     {
         if has_supervised_channels(&config) {
             let channels_cfg = config.clone();
+            let token = shutdown_token.child_token();
             handles.push(spawn_component_supervisor(
                 "channels",
                 initial_backoff,
                 max_backoff,
+                token.clone(),
                 move || {
                     let cfg = channels_cfg.clone();
-                    async move { crate::channels::start_channels(cfg).await }
+                    let t = token.clone();
+                    async move { crate::channels::start_channels(cfg, t).await }
                 },
             ));
         } else {
@@ -88,10 +100,12 @@ pub async fn run(config: Config, host: String, port: u16) -> Result<()> {
 
     if config.heartbeat.enabled {
         let heartbeat_cfg = config.clone();
+        let token = shutdown_token.child_token();
         handles.push(spawn_component_supervisor(
             "heartbeat",
             initial_backoff,
             max_backoff,
+            token,
             move || {
                 let cfg = heartbeat_cfg.clone();
                 async move { Box::pin(run_heartbeat_worker(cfg)).await }
@@ -101,10 +115,12 @@ pub async fn run(config: Config, host: String, port: u16) -> Result<()> {
 
     if config.cron.enabled {
         let scheduler_cfg = config.clone();
+        let token = shutdown_token.child_token();
         handles.push(spawn_component_supervisor(
             "scheduler",
             initial_backoff,
             max_backoff,
+            token,
             move || {
                 let cfg = scheduler_cfg.clone();
                 async move { crate::cron::scheduler::run(cfg).await }
@@ -120,18 +136,46 @@ pub async fn run(config: Config, host: String, port: u16) -> Result<()> {
     println!("   Components: gateway, channels, heartbeat, scheduler");
     println!("   Ctrl+C or SIGTERM to stop");
 
-    // Wait for shutdown signal (SIGINT or SIGTERM)
+    // ── Wait for shutdown signal ──
     wait_for_shutdown_signal().await?;
+
+    tracing::info!("Graceful shutdown initiated — draining in-flight work...");
     crate::health::mark_component_error("daemon", "shutdown requested");
 
-    for handle in &handles {
-        handle.abort();
-    }
-    for handle in handles {
-        let _ = handle.await;
+    // Cancel the token — all supervised components will stop their restart loops
+    // and components that observe the token will begin draining.
+    shutdown_token.cancel();
+
+    // Wait for components to finish gracefully, with a hard timeout.
+    let drain_result = tokio::time::timeout(
+        Duration::from_secs(GRACEFUL_SHUTDOWN_TIMEOUT_SECS),
+        wait_for_handles(&mut handles),
+    )
+    .await;
+
+    if drain_result.is_err() {
+        tracing::warn!(
+            "Graceful shutdown timed out after {GRACEFUL_SHUTDOWN_TIMEOUT_SECS}s — aborting remaining tasks"
+        );
+        for handle in &handles {
+            handle.abort();
+        }
+        for handle in handles {
+            let _ = handle.await;
+        }
     }
 
+    // Final state flush
+    flush_state_file(&config).await;
+
+    tracing::info!("Shutdown complete");
     Ok(())
+}
+
+async fn wait_for_handles(handles: &mut Vec<JoinHandle<()>>) {
+    for handle in handles.drain(..) {
+        let _ = handle.await;
+    }
 }
 
 pub fn state_file_path(config: &Config) -> PathBuf {
@@ -142,7 +186,7 @@ pub fn state_file_path(config: &Config) -> PathBuf {
         .join("daemon_state.json")
 }
 
-fn spawn_state_writer(config: Config) -> JoinHandle<()> {
+fn spawn_state_writer(config: Config, token: CancellationToken) -> JoinHandle<()> {
     tokio::spawn(async move {
         let path = state_file_path(&config);
         if let Some(parent) = path.parent() {
@@ -151,24 +195,39 @@ fn spawn_state_writer(config: Config) -> JoinHandle<()> {
 
         let mut interval = tokio::time::interval(Duration::from_secs(STATUS_FLUSH_SECONDS));
         loop {
-            interval.tick().await;
-            let mut json = crate::health::snapshot_json();
-            if let Some(obj) = json.as_object_mut() {
-                obj.insert(
-                    "written_at".into(),
-                    serde_json::json!(Utc::now().to_rfc3339()),
-                );
+            tokio::select! {
+                () = token.cancelled() => break,
+                _ = interval.tick() => {
+                    write_state_snapshot(&path).await;
+                }
             }
-            let data = serde_json::to_vec_pretty(&json).unwrap_or_else(|_| b"{}".to_vec());
-            let _ = tokio::fs::write(&path, data).await;
         }
     })
+}
+
+async fn write_state_snapshot(path: &std::path::Path) {
+    let mut json = crate::health::snapshot_json();
+    if let Some(obj) = json.as_object_mut() {
+        obj.insert(
+            "written_at".into(),
+            serde_json::json!(Utc::now().to_rfc3339()),
+        );
+    }
+    let data = serde_json::to_vec_pretty(&json).unwrap_or_else(|_| b"{}".to_vec());
+    let _ = tokio::fs::write(path, data).await;
+}
+
+async fn flush_state_file(config: &Config) {
+    let path = state_file_path(config);
+    write_state_snapshot(&path).await;
+    tracing::debug!("Final state flushed to {}", path.display());
 }
 
 fn spawn_component_supervisor<F, Fut>(
     name: &'static str,
     initial_backoff_secs: u64,
     max_backoff_secs: u64,
+    token: CancellationToken,
     mut run_component: F,
 ) -> JoinHandle<()>
 where
@@ -181,21 +240,46 @@ where
 
         loop {
             crate::health::mark_component_ok(name);
-            match run_component().await {
-                Ok(()) => {
-                    crate::health::mark_component_error(name, "component exited unexpectedly");
-                    tracing::warn!("Daemon component '{name}' exited unexpectedly");
-                    // Clean exit — reset backoff since the component ran successfully
-                    backoff = initial_backoff_secs.max(1);
+            tokio::select! {
+                () = token.cancelled() => {
+                    tracing::info!("Supervisor '{name}' received shutdown signal");
+                    break;
                 }
-                Err(e) => {
-                    crate::health::mark_component_error(name, e.to_string());
-                    tracing::error!("Daemon component '{name}' failed: {e}");
+                result = run_component() => {
+                    match result {
+                        Ok(()) => {
+                            // If token is cancelled, this is expected — don't restart.
+                            if token.is_cancelled() {
+                                tracing::info!("Component '{name}' stopped during shutdown");
+                                break;
+                            }
+                            crate::health::mark_component_error(name, "component exited unexpectedly");
+                            tracing::warn!("Daemon component '{name}' exited unexpectedly");
+                            // Clean exit — reset backoff since the component ran successfully
+                            backoff = initial_backoff_secs.max(1);
+                        }
+                        Err(e) => {
+                            if token.is_cancelled() {
+                                tracing::info!("Component '{name}' stopped during shutdown: {e}");
+                                break;
+                            }
+                            crate::health::mark_component_error(name, e.to_string());
+                            tracing::error!("Daemon component '{name}' failed: {e}");
+                        }
+                    }
                 }
             }
 
             crate::health::bump_component_restart(name);
-            tokio::time::sleep(Duration::from_secs(backoff)).await;
+
+            // Wait for backoff, but break immediately if shutdown is requested.
+            tokio::select! {
+                () = token.cancelled() => {
+                    tracing::info!("Supervisor '{name}' received shutdown signal during backoff");
+                    break;
+                }
+                () = tokio::time::sleep(Duration::from_secs(backoff)) => {}
+            }
             // Double backoff AFTER sleeping so first error uses initial_backoff
             backoff = backoff.saturating_mul(2).min(max_backoff);
         }
@@ -382,12 +466,14 @@ mod tests {
 
     #[tokio::test]
     async fn supervisor_marks_error_and_restart_on_failure() {
-        let handle = spawn_component_supervisor("daemon-test-fail", 1, 1, || async {
-            anyhow::bail!("boom")
-        });
+        let token = CancellationToken::new();
+        let handle =
+            spawn_component_supervisor("daemon-test-fail", 1, 1, token.clone(), || async {
+                anyhow::bail!("boom")
+            });
 
         tokio::time::sleep(Duration::from_millis(50)).await;
-        handle.abort();
+        token.cancel();
         let _ = handle.await;
 
         let snapshot = crate::health::snapshot_json();
@@ -402,10 +488,14 @@ mod tests {
 
     #[tokio::test]
     async fn supervisor_marks_unexpected_exit_as_error() {
-        let handle = spawn_component_supervisor("daemon-test-exit", 1, 1, || async { Ok(()) });
+        let token = CancellationToken::new();
+        let handle =
+            spawn_component_supervisor("daemon-test-exit", 1, 1, token.clone(), || async {
+                Ok(())
+            });
 
         tokio::time::sleep(Duration::from_millis(50)).await;
-        handle.abort();
+        token.cancel();
         let _ = handle.await;
 
         let snapshot = crate::health::snapshot_json();
@@ -416,6 +506,31 @@ mod tests {
             .as_str()
             .unwrap_or("")
             .contains("component exited unexpectedly"));
+    }
+
+    #[tokio::test]
+    async fn supervisor_stops_on_cancellation_without_restart() {
+        let token = CancellationToken::new();
+        let call_count = std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0));
+        let call_count_inner = call_count.clone();
+        let handle =
+            spawn_component_supervisor("daemon-test-cancel", 1, 1, token.clone(), move || {
+                let cc = call_count_inner.clone();
+                async move {
+                    cc.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                    // Simulate work
+                    tokio::time::sleep(Duration::from_millis(500)).await;
+                    Ok(())
+                }
+            });
+
+        // Let the component start once
+        tokio::time::sleep(Duration::from_millis(20)).await;
+        token.cancel();
+        let _ = handle.await;
+
+        // Should have started at most once — no restart after cancellation
+        assert!(call_count.load(std::sync::atomic::Ordering::Relaxed) <= 1);
     }
 
     #[test]

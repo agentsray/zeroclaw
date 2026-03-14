@@ -833,7 +833,7 @@ async fn main() -> Result<()> {
 
         // Auto-start channels if user said yes during wizard
         if std::env::var("ZEROCLAW_AUTOSTART_CHANNELS").as_deref() == Ok("1") {
-            channels::start_channels(config).await?;
+            channels::start_channels(config, tokio_util::sync::CancellationToken::new()).await?;
         }
         return Ok(());
     }
@@ -1177,7 +1177,9 @@ async fn main() -> Result<()> {
         },
 
         Commands::Channel { channel_command } => match channel_command {
-            ChannelCommands::Start => channels::start_channels(config).await,
+            ChannelCommands::Start => {
+                channels::start_channels(config, tokio_util::sync::CancellationToken::new()).await
+            }
             ChannelCommands::Doctor => channels::doctor_channels(config).await,
             other => channels::handle_command(other, &config).await,
         },
