@@ -1,57 +1,47 @@
-# ZeroClaw Docs Summary (Unified TOC)
+# RayCore Docs — Table of Contents
 
-This file is the canonical table of contents for the documentation system.
+## Project
 
-Last refreshed: **February 18, 2026**.
+- [Vision](vision.md)
+- [Open Questions](open-questions.md)
 
-## Language Entry
+## Getting Started
 
-- English README: [../README.md](../README.md)
-- English Docs Hub: [README.md](README.md)
+- [Setup Guides](setup-guides/README.md)
+- [macOS Update/Uninstall](setup-guides/macos-update-uninstall.md)
+- [One-Click Bootstrap](setup-guides/one-click-bootstrap.md)
 
-## Collections
+## Reference
 
-### 1) Getting Started
+- [Reference Overview](reference/README.md)
+- [Commands Reference](reference/cli/commands-reference.md)
+- [Providers Reference](reference/api/providers-reference.md)
+- [Channels Reference](reference/api/channels-reference.md)
+- [Config Reference](reference/api/config-reference.md)
 
-- [setup-guides/README.md](setup-guides/README.md)
-- [macos-update-uninstall.md](setup-guides/macos-update-uninstall.md)
-- [one-click-bootstrap.md](setup-guides/one-click-bootstrap.md)
+## Operations & Deployment
 
-### 2) Command/Config References & Integrations
+- [Operations Overview](ops/README.md)
+- [Operations Runbook](ops/operations-runbook.md)
+- [Troubleshooting](ops/troubleshooting.md)
+- [Network Deployment](ops/network-deployment.md)
+- [Sidecar Agent Runbook](sidecar-agent-runbook.md)
 
-- [reference/README.md](reference/README.md)
-- [commands-reference.md](reference/cli/commands-reference.md)
-- [providers-reference.md](reference/api/providers-reference.md)
-- [channels-reference.md](reference/api/channels-reference.md)
-- [nextcloud-talk-setup.md](setup-guides/nextcloud-talk-setup.md)
-- [config-reference.md](reference/api/config-reference.md)
-- [zai-glm-setup.md](setup-guides/zai-glm-setup.md)
+## Security
 
-### 3) Operations & Deployment
+- [Security Overview](security/README.md)
+- [Agnostic Security](security/agnostic-security.md)
+- [Frictionless Security](security/frictionless-security.md)
+- [Sandboxing](security/sandboxing.md)
+- [Resource Limits](ops/resource-limits.md)
+- [Audit Logging](security/audit-logging.md)
 
-- [ops/README.md](ops/README.md)
-- [operations-runbook.md](ops/operations-runbook.md)
-- [troubleshooting.md](ops/troubleshooting.md)
-- [network-deployment.md](ops/network-deployment.md)
-- [mattermost-setup.md](setup-guides/mattermost-setup.md)
+## Hardware & Peripherals
 
-### 4) Security Design & Proposals
+- [Hardware Overview](hardware/README.md)
+- [Hardware Peripherals Design](hardware/hardware-peripherals-design.md)
 
-- [security/README.md](security/README.md)
-- [agnostic-security.md](security/agnostic-security.md)
-- [frictionless-security.md](security/frictionless-security.md)
-- [sandboxing.md](security/sandboxing.md)
-- [resource-limits.md](ops/resource-limits.md)
-- [audit-logging.md](security/audit-logging.md)
-- [security-roadmap.md](security/security-roadmap.md)
+## Research
 
-### 5) Hardware & Peripherals
-
-- [hardware/README.md](hardware/README.md)
-- [hardware-peripherals-design.md](hardware/hardware-peripherals-design.md)
-- [nucleo-setup.md](hardware/nucleo-setup.md)
-- [arduino-uno-q-setup.md](hardware/arduino-uno-q-setup.md)
-- [datasheets/nucleo-f401re.md](hardware/datasheets/nucleo-f401re.md)
-- [datasheets/arduino-uno.md](hardware/datasheets/arduino-uno.md)
-- [datasheets/esp32.md](hardware/datasheets/esp32.md)
-
+- [Channel Input/Output Separation](research/channel-input-output-separation.md)
+- [MCP Integration Analysis](mcp-integration-analysis.md)
