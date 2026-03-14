@@ -1198,7 +1198,9 @@ description = "plugin tool exposed for from_config tests"
         let mut config = base_from_config_for_tool_filter_tests();
         config.agent.allowed_tools = vec!["shell".to_string()];
 
-        let agent = Agent::from_config(&config).await.expect("agent should build");
+        let agent = Agent::from_config(&config)
+            .await
+            .expect("agent should build");
         let names: Vec<&str> = agent.tools.iter().map(|tool: &_| tool.name()).collect();
         assert_eq!(names, vec!["shell"]);
     }
@@ -1208,7 +1210,9 @@ description = "plugin tool exposed for from_config tests"
         let _guard = crate::test_locks::PLUGIN_RUNTIME_LOCK.lock();
         let config = base_from_config_for_tool_filter_tests();
 
-        let agent = Agent::from_config(&config).await.expect("agent should build");
+        let agent = Agent::from_config(&config)
+            .await
+            .expect("agent should build");
         let names: Vec<&str> = agent.tools.iter().map(|tool: &_| tool.name()).collect();
         assert!(names.contains(&"shell"));
         assert!(names.contains(&"file_read"));
@@ -1220,7 +1224,9 @@ description = "plugin tool exposed for from_config tests"
         let mut config = base_from_config_for_tool_filter_tests();
         config.agent.denied_tools = vec!["shell".to_string()];
 
-        let agent = Agent::from_config(&config).await.expect("agent should build");
+        let agent = Agent::from_config(&config)
+            .await
+            .expect("agent should build");
         let names: Vec<&str> = agent.tools.iter().map(|tool: &_| tool.name()).collect();
         assert!(!names.contains(&"shell"));
     }
@@ -1231,7 +1237,9 @@ description = "plugin tool exposed for from_config tests"
         let mut config = base_from_config_for_tool_filter_tests();
         config.agent.allowed_tools = vec!["missing_tool".to_string()];
 
-        let agent = Agent::from_config(&config).await.expect("agent should build with empty toolset");
+        let agent = Agent::from_config(&config)
+            .await
+            .expect("agent should build with empty toolset");
         assert!(agent.tools.is_empty());
     }
 

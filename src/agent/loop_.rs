@@ -7642,8 +7642,7 @@ Let me check the result."#;
 
     #[test]
     fn parse_called_tool_format_single_call() {
-        let input =
-            r#"[Called tool `shell` with: {"command":"npm exec -- capture-website-cli https://example.com --output=out.png"}]"#;
+        let input = r#"[Called tool `shell` with: {"command":"npm exec -- capture-website-cli https://example.com --output=out.png"}]"#;
         let (text, calls) = parse_tool_calls(input);
         assert_eq!(calls.len(), 1, "should parse one tool call");
         assert_eq!(calls[0].name, "shell");

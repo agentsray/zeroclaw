@@ -1236,8 +1236,9 @@ impl OpenAiCompatibleProvider {
                     _ => String::new(),
                 };
                 msg.role = "user".to_string();
-                msg.content =
-                    Some(MessageContent::Text(format!("[Tool result]\n{content_text}")));
+                msg.content = Some(MessageContent::Text(format!(
+                    "[Tool result]\n{content_text}"
+                )));
                 msg.tool_call_id = None;
             }
         }
@@ -2445,10 +2446,8 @@ impl Provider for OpenAiCompatibleProvider {
         } else {
             tools.as_ref().map(|_| "auto".to_string())
         };
-        let mut native_messages = Self::convert_messages_for_native(
-            &effective_messages,
-            !self.merge_system_into_user,
-        );
+        let mut native_messages =
+            Self::convert_messages_for_native(&effective_messages, !self.merge_system_into_user);
         if gemini_compat {
             Self::flatten_tool_history_for_gemini(&mut native_messages);
         }

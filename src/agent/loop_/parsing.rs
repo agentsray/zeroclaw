@@ -1723,9 +1723,8 @@ pub(super) fn parse_tool_calls(response: &str) -> (String, Vec<ParsedToolCall>) 
 /// `convert_messages()` in the compatible provider. Models echo this format
 /// when they see it in their conversation history.
 fn parse_called_tool_format(response: &str) -> (String, Vec<ParsedToolCall>) {
-    static CALLED_TOOL_RE: LazyLock<Regex> = LazyLock::new(|| {
-        Regex::new(r"(?s)\[Called tool `([^`]+)` with:\s*(\{.+?\})\]").unwrap()
-    });
+    static CALLED_TOOL_RE: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"(?s)\[Called tool `([^`]+)` with:\s*(\{.+?\})\]").unwrap());
 
     let mut calls = Vec::new();
     let mut text_parts = Vec::new();

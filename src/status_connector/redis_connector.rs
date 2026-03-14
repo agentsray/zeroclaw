@@ -82,10 +82,7 @@ impl RedisStatusConnector {
             .filter(|s| !s.trim().is_empty())
             .unwrap_or("default")
             .to_string();
-        let user_id = config
-            .user_id
-            .as_ref()
-            .filter(|s| !s.trim().is_empty());
+        let user_id = config.user_id.as_ref().filter(|s| !s.trim().is_empty());
         let key_prefix = config
             .key_prefix
             .as_deref()

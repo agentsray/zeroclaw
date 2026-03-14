@@ -50,6 +50,9 @@ mod tests {
     fn agent_status_as_str_maps_correctly() {
         assert_eq!(AgentStatus::Starting.as_str(), "starting");
         assert_eq!(AgentStatus::Working.as_str(), "working");
-        assert_eq!(AgentStatus::CompletedAwaiting.as_str(), "completed_awaiting");
+        assert_eq!(
+            AgentStatus::CompletedAwaiting.as_str(),
+            "completed_awaiting"
+        );
     }
 }

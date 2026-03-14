@@ -6112,7 +6112,8 @@ pub async fn start_channels(config: Config) -> Result<()> {
 
     let status_connector = crate::status_connector::create_status_connector(&config.sidecar_status);
     if let Some(ref sc) = status_connector {
-        sc.publish(crate::status_connector::AgentStatus::Starting).await;
+        sc.publish(crate::status_connector::AgentStatus::Starting)
+            .await;
     }
 
     run_message_dispatch_loop(rx, runtime_ctx, max_in_flight_messages, status_connector).await;
