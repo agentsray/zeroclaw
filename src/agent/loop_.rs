@@ -1826,6 +1826,20 @@ fn parse_tool_calls(response: &str) -> (String, Vec<ParsedToolCall>) {
         }
     }
 
+    // [Called tool `name` with: {args}] format — produced by convert_messages()
+    // in compatible.rs for history replay. Models that see this format in their
+    // conversation history sometimes echo it back instead of using <tool_call> tags.
+    if calls.is_empty() {
+        let (called_text, called_calls) = parse_called_tool_format(remaining);
+        if !called_calls.is_empty() {
+            calls = called_calls;
+            if !called_text.trim().is_empty() {
+                text_parts.push(called_text.trim().to_string());
+            }
+            remaining = "";
+        }
+    }
+
     // SECURITY: We do NOT fall back to extracting arbitrary JSON from the response
     // here. That would enable prompt injection attacks where malicious content
     // (e.g., in emails, files, or web pages) could include JSON that mimics a
@@ -1834,6 +1848,7 @@ fn parse_tool_calls(response: &str) -> (String, Vec<ParsedToolCall>) {
     // 2. ZeroClaw tool-call tags (<tool_call>, <toolcall>, <tool-call>)
     // 3. Markdown code blocks with tool_call/toolcall/tool-call language
     // 4. Explicit GLM line-based call formats (e.g. `shell/command>...`)
+    // 5. History-echo [Called tool `name` with: {args}] format
     // This ensures only the LLM's intentional tool calls are executed.
 
     // Remaining text after last tool call
@@ -1891,6 +1906,48 @@ fn strip_tool_result_blocks(text: &str) -> String {
     result.trim().to_string()
 }
 
+/// Parse `[Called tool `name` with: {json_args}]` entries produced by
+/// `convert_messages()` in the compatible provider. Models echo this format
+/// when they see it in their conversation history.
+fn parse_called_tool_format(response: &str) -> (String, Vec<ParsedToolCall>) {
+    static CALLED_TOOL_RE: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"(?s)\[Called tool `([^`]+)` with:\s*(\{.+?\})\]").unwrap());
+
+    let mut calls = Vec::new();
+    let mut text_parts = Vec::new();
+    let mut last_end = 0;
+
+    for cap in CALLED_TOOL_RE.captures_iter(response) {
+        let full_match = cap.get(0).unwrap();
+        let before = &response[last_end..full_match.start()];
+        if !before.trim().is_empty() {
+            text_parts.push(before.trim().to_string());
+        }
+
+        let name = cap[1].trim().to_string();
+        let raw_args = cap[2].trim();
+
+        if let Ok(args) = serde_json::from_str::<serde_json::Value>(raw_args) {
+            calls.push(ParsedToolCall {
+                name: map_tool_name_alias(&name).to_string(),
+                arguments: args,
+                tool_call_id: None,
+            });
+        } else {
+            text_parts.push(full_match.as_str().to_string());
+        }
+
+        last_end = full_match.end();
+    }
+
+    let after = &response[last_end..];
+    if !after.trim().is_empty() {
+        text_parts.push(after.trim().to_string());
+    }
+
+    (text_parts.join("\n"), calls)
+}
+
 fn detect_tool_call_parse_issue(response: &str, parsed_calls: &[ParsedToolCall]) -> Option<String> {
     if !parsed_calls.is_empty() {
         return None;
@@ -1914,7 +1971,8 @@ fn detect_tool_call_parse_issue(response: &str, parsed_calls: &[ParsedToolCall])
         || trimmed.contains("```tool ") // Generic ```tool <name> pattern
         || trimmed.contains("\"tool_calls\"")
         || trimmed.contains("TOOL_CALL")
-        || trimmed.contains("<FunctionCall>");
+        || trimmed.contains("<FunctionCall>")
+        || trimmed.contains("[Called tool `");
 
     if looks_like_tool_payload {
         Some("response resembled a tool-call payload but no valid tool call could be parsed".into())
@@ -3094,6 +3152,7 @@ pub async fn run(
         provider_timeout_secs: Some(config.provider_timeout_secs),
         extra_headers: config.extra_headers.clone(),
         api_path: config.api_path.clone(),
+        custom_provider_api_mode: config.provider_api.map(|m| m.as_compatible_mode()),
     };
 
     let provider: Box<dyn Provider> = providers::create_routed_provider_with_options(
@@ -3638,6 +3697,7 @@ pub async fn process_message(config: Config, message: &str) -> Result<String> {
         provider_timeout_secs: Some(config.provider_timeout_secs),
         extra_headers: config.extra_headers.clone(),
         api_path: config.api_path.clone(),
+        custom_provider_api_mode: config.provider_api.map(|m| m.as_compatible_mode()),
     };
     let provider: Box<dyn Provider> = providers::create_routed_provider_with_options(
         provider_name,
@@ -5530,6 +5590,68 @@ Final answer."#;
     fn detect_tool_call_parse_issue_ignores_normal_text() {
         let issue = detect_tool_call_parse_issue("Thanks, done.", &[]);
         assert!(issue.is_none());
+    }
+
+    #[test]
+    fn detect_tool_call_parse_issue_flags_called_tool_format() {
+        let response = r#"[Called tool `shell` with: {"command": "ls"}]"#;
+        let issue = detect_tool_call_parse_issue(response, &[]);
+        assert!(
+            issue.is_some(),
+            "unparsed [Called tool] format should be flagged"
+        );
+    }
+
+    #[test]
+    fn parse_tool_calls_handles_called_tool_format_single() {
+        let input = r#"[Called tool `shell` with: {"command": "uname -a"}]"#;
+        let (text, calls) = parse_tool_calls(input);
+        assert_eq!(calls.len(), 1);
+        assert_eq!(calls[0].name, "shell");
+        assert_eq!(calls[0].arguments["command"], "uname -a");
+        assert!(text.is_empty());
+    }
+
+    #[test]
+    fn parse_tool_calls_handles_called_tool_format_multiple() {
+        let input = r#"[Called tool `shell` with: {"command": "pwd"}]
+[Called tool `file_read` with: {"path": "/tmp/test.txt"}]"#;
+        let (text, calls) = parse_tool_calls(input);
+        assert_eq!(calls.len(), 2);
+        assert_eq!(calls[0].name, "shell");
+        assert_eq!(calls[1].name, "file_read");
+        assert!(text.is_empty());
+    }
+
+    #[test]
+    fn parse_tool_calls_handles_called_tool_format_with_surrounding_text() {
+        let input = r#"Sure, let me do that.
+[Called tool `shell` with: {"command": "date"}]
+Done."#;
+        let (text, calls) = parse_tool_calls(input);
+        assert_eq!(calls.len(), 1);
+        assert_eq!(calls[0].name, "shell");
+        assert!(text.contains("Sure, let me do that."));
+        assert!(text.contains("Done."));
+    }
+
+    #[test]
+    fn parse_tool_calls_handles_called_tool_format_alias_mapping() {
+        let input = r#"[Called tool `bash` with: {"command": "echo hi"}]"#;
+        let (_, calls) = parse_tool_calls(input);
+        assert_eq!(calls.len(), 1);
+        assert_eq!(calls[0].name, "shell", "bash should be mapped to shell");
+    }
+
+    #[test]
+    fn parse_tool_calls_handles_called_tool_format_invalid_json() {
+        let input = r#"[Called tool `shell` with: {not valid json}]"#;
+        let (text, calls) = parse_tool_calls(input);
+        assert!(calls.is_empty(), "invalid JSON should not produce calls");
+        assert!(
+            text.contains("[Called tool"),
+            "unparseable entry should be preserved in text"
+        );
     }
 
     #[test]

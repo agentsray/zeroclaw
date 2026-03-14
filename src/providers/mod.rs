@@ -686,6 +686,8 @@ pub struct ProviderRuntimeOptions {
     /// Custom API path suffix for OpenAI-compatible providers
     /// (e.g. "/v2/generate" instead of the default "/chat/completions").
     pub api_path: Option<String>,
+    /// API mode override for `custom:` providers (e.g. Gemini compat).
+    pub custom_provider_api_mode: Option<compatible::CompatibleApiMode>,
 }
 
 impl Default for ProviderRuntimeOptions {
@@ -699,6 +701,7 @@ impl Default for ProviderRuntimeOptions {
             provider_timeout_secs: None,
             extra_headers: std::collections::HashMap::new(),
             api_path: None,
+            custom_provider_api_mode: None,
         }
     }
 }
@@ -1343,13 +1346,24 @@ fn create_provider_with_url_and_options(
                 "Custom provider",
                 "custom:https://your-api.com",
             )?;
-            Ok(compat(OpenAiCompatibleProvider::new_with_vision(
-                "Custom",
-                &base_url,
-                key,
-                AuthStyle::Bearer,
-                true,
-            )))
+            if let Some(api_mode) = options.custom_provider_api_mode {
+                Ok(compat(OpenAiCompatibleProvider::new_custom_with_mode(
+                    "Custom",
+                    &base_url,
+                    key,
+                    AuthStyle::Bearer,
+                    true,
+                    api_mode,
+                )))
+            } else {
+                Ok(compat(OpenAiCompatibleProvider::new_with_vision(
+                    "Custom",
+                    &base_url,
+                    key,
+                    AuthStyle::Bearer,
+                    true,
+                )))
+            }
         }
 
         // ── Anthropic-compatible custom endpoints ───────────

@@ -136,6 +136,7 @@ pub async fn run_wizard(force: bool) -> Result<Config> {
         api_url: provider_api_url,
         api_path: None,
         default_provider: Some(provider),
+        provider_api: None,
         default_model: Some(model),
         model_providers: std::collections::HashMap::new(),
         default_temperature: 0.7,
@@ -177,6 +178,7 @@ pub async fn run_wizard(force: bool) -> Result<Config> {
         tts: crate::config::TtsConfig::default(),
         mcp: crate::config::McpConfig::default(),
         nodes: crate::config::NodesConfig::default(),
+        sidecar_status: crate::config::SidecarStatusConfig::default(),
     };
 
     println!(
@@ -493,6 +495,7 @@ async fn run_quick_setup_with_home(
         api_url: None,
         api_path: None,
         default_provider: Some(provider_name.clone()),
+        provider_api: None,
         default_model: Some(model.clone()),
         model_providers: std::collections::HashMap::new(),
         default_temperature: 0.7,
@@ -534,6 +537,7 @@ async fn run_quick_setup_with_home(
         tts: crate::config::TtsConfig::default(),
         mcp: crate::config::McpConfig::default(),
         nodes: crate::config::NodesConfig::default(),
+        sidecar_status: crate::config::SidecarStatusConfig::default(),
     };
 
     config.save().await?;

@@ -59,6 +59,36 @@ static RUNTIME_PROXY_CLIENT_CACHE: OnceLock<RwLock<HashMap<String, reqwest::Clie
 
 // ── Top-level config ──────────────────────────────────────────────
 
+/// Protocol mode for `custom:` OpenAI-compatible providers.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum ProviderApiMode {
+    /// Default behavior: `/chat/completions` first, optional `/responses`
+    /// fallback when supported.
+    OpenAiChatCompletions,
+    /// Responses-first behavior: call `/responses` directly.
+    OpenAiResponses,
+    /// Gemini-compatible mode: uses `/chat/completions` format but applies
+    /// Gemini-safe schema transformations to tool definitions and omits
+    /// `tool_choice` from requests. Use with `custom:` providers that proxy
+    /// to Google Gemini API or Vertex AI.
+    GeminiCompat,
+}
+
+impl ProviderApiMode {
+    pub fn as_compatible_mode(self) -> crate::providers::compatible::CompatibleApiMode {
+        match self {
+            Self::OpenAiChatCompletions => {
+                crate::providers::compatible::CompatibleApiMode::OpenAiChatCompletions
+            }
+            Self::OpenAiResponses => {
+                crate::providers::compatible::CompatibleApiMode::OpenAiResponses
+            }
+            Self::GeminiCompat => crate::providers::compatible::CompatibleApiMode::GeminiCompat,
+        }
+    }
+}
+
 /// Top-level ZeroClaw configuration, loaded from `config.toml`.
 ///
 /// Resolution order: `ZEROCLAW_WORKSPACE` env → `active_workspace.toml` marker → `~/.zeroclaw/config.toml`.
@@ -81,6 +111,9 @@ pub struct Config {
     /// Default provider ID or alias (e.g. `"openrouter"`, `"ollama"`, `"anthropic"`). Default: `"openrouter"`.
     #[serde(alias = "model_provider")]
     pub default_provider: Option<String>,
+    /// Optional API protocol mode for `custom:` providers.
+    #[serde(default)]
+    pub provider_api: Option<ProviderApiMode>,
     /// Default model routed through the selected provider (e.g. `"anthropic/claude-sonnet-4-6"`).
     #[serde(alias = "model")]
     pub default_model: Option<String>,
@@ -255,6 +288,10 @@ pub struct Config {
     /// Dynamic node discovery configuration (`[nodes]`).
     #[serde(default)]
     pub nodes: NodesConfig,
+
+    /// Sidecar status connector (`[sidecar_status]`) — Redis publishing for pod lifecycle signaling.
+    #[serde(default)]
+    pub sidecar_status: SidecarStatusConfig,
 }
 
 /// Named provider profile definition compatible with Codex app-server style config.
@@ -587,6 +624,35 @@ impl Default for NodesConfig {
             auth_token: None,
         }
     }
+}
+
+// ── Sidecar Status Connector ─────────────────────────────────────
+
+/// Sidecar status connector configuration (`[sidecar_status]` section).
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, Default)]
+pub struct SidecarStatusConfig {
+    /// Enable status publishing to Redis.
+    #[serde(default)]
+    pub enabled: bool,
+    /// Redis connection URL (e.g. `redis://127.0.0.1/0`).
+    #[serde(default)]
+    pub redis_url: String,
+    /// Agent identifier for Redis key (default: `"default"`).
+    #[serde(default)]
+    pub agent_id: Option<String>,
+    /// Optional user identifier for multi-tenant key namespace.
+    #[serde(default)]
+    pub user_id: Option<String>,
+    /// Key prefix (default: `"zeroclaw:agent"`).
+    #[serde(default)]
+    pub key_prefix: Option<String>,
+    /// Seconds of idle time after last message completion before publishing `completed_awaiting`.
+    #[serde(default = "default_sidecar_idle_timeout_secs")]
+    pub idle_timeout_secs: u64,
+}
+
+fn default_sidecar_idle_timeout_secs() -> u64 {
+    30
 }
 
 // ── TTS (Text-to-Speech) ─────────────────────────────────────────
@@ -4129,6 +4195,7 @@ impl Default for Config {
             api_url: None,
             api_path: None,
             default_provider: Some("openrouter".to_string()),
+            provider_api: None,
             default_model: Some("anthropic/claude-sonnet-4.6".to_string()),
             model_providers: HashMap::new(),
             default_temperature: default_temperature(),
@@ -4170,6 +4237,7 @@ impl Default for Config {
             tts: TtsConfig::default(),
             mcp: McpConfig::default(),
             nodes: NodesConfig::default(),
+            sidecar_status: SidecarStatusConfig::default(),
         }
     }
 }
@@ -6173,6 +6241,7 @@ default_temperature = 0.7
             api_url: None,
             api_path: None,
             default_provider: Some("openrouter".into()),
+            provider_api: None,
             default_model: Some("gpt-4o".into()),
             model_providers: HashMap::new(),
             default_temperature: 0.5,
@@ -6273,6 +6342,7 @@ default_temperature = 0.7
             tts: TtsConfig::default(),
             mcp: McpConfig::default(),
             nodes: NodesConfig::default(),
+            sidecar_status: SidecarStatusConfig::default(),
         };
 
         let toml_str = toml::to_string_pretty(&config).unwrap();
@@ -6523,6 +6593,7 @@ tool_dispatcher = "xml"
             api_url: None,
             api_path: None,
             default_provider: Some("openrouter".into()),
+            provider_api: None,
             default_model: Some("test-model".into()),
             model_providers: HashMap::new(),
             default_temperature: 0.9,
@@ -6564,6 +6635,7 @@ tool_dispatcher = "xml"
             tts: TtsConfig::default(),
             mcp: McpConfig::default(),
             nodes: NodesConfig::default(),
+            sidecar_status: SidecarStatusConfig::default(),
         };
 
         config.save().await.unwrap();

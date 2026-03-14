@@ -385,6 +385,7 @@ pub fn all_tools_with_runtime(
                 provider_timeout_secs: Some(root_config.provider_timeout_secs),
                 extra_headers: root_config.extra_headers.clone(),
                 api_path: root_config.api_path.clone(),
+                custom_provider_api_mode: root_config.provider_api.map(|m| m.as_compatible_mode()),
             },
         )
         .with_parent_tools(Arc::clone(&parent_tools))

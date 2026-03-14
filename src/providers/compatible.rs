@@ -37,6 +37,8 @@ pub struct OpenAiCompatibleProvider {
     /// Whether this provider supports OpenAI-style native tool calling.
     /// When false, tools are injected into the system prompt as text.
     native_tool_calling: bool,
+    /// Selects the primary protocol for this compatible endpoint.
+    api_mode: CompatibleApiMode,
     /// HTTP request timeout in seconds for LLM API calls. Default: 120.
     timeout_secs: u64,
     /// Extra HTTP headers to include in all API requests.
@@ -55,6 +57,18 @@ pub enum AuthStyle {
     XApiKey,
     /// Custom header name
     Custom(String),
+}
+
+/// API mode for OpenAI-compatible endpoints.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CompatibleApiMode {
+    /// Default mode: call chat-completions first and optionally fallback.
+    OpenAiChatCompletions,
+    /// Responses-first mode: call `/responses` directly.
+    OpenAiResponses,
+    /// Gemini-compatible mode: uses chat-completions format but applies
+    /// Gemini-safe schema transformations and omits `tool_choice`.
+    GeminiCompat,
 }
 
 impl OpenAiCompatibleProvider {
@@ -144,6 +158,32 @@ impl OpenAiCompatibleProvider {
         )
     }
 
+    /// Create a custom provider with explicit API mode and vision support.
+    ///
+    /// Used by `custom:` providers when the config specifies an explicit
+    /// `provider_api` mode (e.g. `gemini-compat`, `openai-responses`).
+    pub fn new_custom_with_mode(
+        name: &str,
+        base_url: &str,
+        credential: Option<&str>,
+        auth_style: AuthStyle,
+        supports_vision: bool,
+        api_mode: CompatibleApiMode,
+    ) -> Self {
+        let mut provider = Self::new_with_options(
+            name,
+            base_url,
+            credential,
+            auth_style,
+            supports_vision,
+            true,
+            None,
+            false,
+        );
+        provider.api_mode = api_mode;
+        provider
+    }
+
     /// For providers that do not support `role: system` (e.g. MiniMax).
     /// System prompt content is prepended to the first user message instead.
     pub fn new_merge_system_into_user(
@@ -177,6 +217,7 @@ impl OpenAiCompatibleProvider {
             user_agent: user_agent.map(ToString::to_string),
             merge_system_into_user,
             native_tool_calling: !merge_system_into_user,
+            api_mode: CompatibleApiMode::OpenAiChatCompletions,
             timeout_secs: 120,
             extra_headers: std::collections::HashMap::new(),
             api_path: None,
@@ -916,6 +957,77 @@ impl OpenAiCompatibleProvider {
         }
     }
 
+    /// Check if Gemini-compatible schema cleaning should be applied.
+    ///
+    /// True when either:
+    /// - `api_mode` is explicitly set to `GeminiCompat` (via config), or
+    /// - the model name starts with `gemini` (auto-detection for `custom:` providers).
+    fn needs_gemini_compat(&self, model: &str) -> bool {
+        self.api_mode == CompatibleApiMode::GeminiCompat
+            || model
+                .rsplit('/')
+                .next()
+                .unwrap_or(model)
+                .starts_with("gemini")
+    }
+
+    /// Apply Gemini-safe schema transformations to serialized tool definitions.
+    fn sanitize_tools_for_gemini(tools: &mut [serde_json::Value]) {
+        for tool in tools.iter_mut() {
+            if let Some(params) = tool
+                .get_mut("function")
+                .and_then(|f| f.get_mut("parameters"))
+            {
+                *params = crate::tools::schema::SchemaCleanr::clean_for_gemini(params.take());
+            }
+        }
+    }
+
+    /// Convert native messages with tool_calls/tool roles into plain text
+    /// messages that Gemini API can accept. Gemini's OpenAI-compat layer does
+    /// not support `tool_calls` in assistant history or `role: "tool"` messages.
+    fn flatten_tool_history_for_gemini(messages: &mut [NativeMessage]) {
+        for msg in messages.iter_mut() {
+            if msg.role == "assistant" {
+                if let Some(ref tool_calls) = msg.tool_calls {
+                    let mut parts: Vec<String> = Vec::new();
+                    if let Some(MessageContent::Text(ref text)) = msg.content {
+                        if !text.is_empty() {
+                            parts.push(text.clone());
+                        }
+                    }
+                    for tc in tool_calls {
+                        let name = tc
+                            .function
+                            .as_ref()
+                            .and_then(|f| f.name.as_deref())
+                            .or(tc.name.as_deref())
+                            .unwrap_or("unknown");
+                        let args = tc
+                            .function
+                            .as_ref()
+                            .and_then(|f| f.arguments.as_deref())
+                            .or(tc.arguments.as_deref())
+                            .unwrap_or("{}");
+                        parts.push(format!("[Called tool `{name}` with: {args}]"));
+                    }
+                    msg.content = Some(MessageContent::Text(parts.join("\n")));
+                    msg.tool_calls = None;
+                }
+            } else if msg.role == "tool" {
+                let content_text = match &msg.content {
+                    Some(MessageContent::Text(t)) => t.clone(),
+                    _ => String::new(),
+                };
+                msg.role = "user".to_string();
+                msg.content = Some(MessageContent::Text(format!(
+                    "[Tool result]\n{content_text}"
+                )));
+                msg.tool_call_id = None;
+            }
+        }
+    }
+
     async fn chat_via_responses(
         &self,
         credential: &str,
@@ -1557,21 +1669,34 @@ impl Provider for OpenAiCompatibleProvider {
             )
         })?;
 
-        let tools = Self::convert_tool_specs(request.tools);
+        let gemini_compat = self.needs_gemini_compat(model);
+        let mut tools = Self::convert_tool_specs(request.tools);
+        if gemini_compat {
+            if let Some(ref mut tool_vec) = tools {
+                Self::sanitize_tools_for_gemini(tool_vec);
+            }
+        }
         let effective_messages = if self.merge_system_into_user {
             Self::flatten_system_messages(request.messages)
         } else {
             request.messages.to_vec()
         };
+        let tool_choice = if gemini_compat {
+            None
+        } else {
+            tools.as_ref().map(|_| "auto".to_string())
+        };
+        let mut native_messages =
+            Self::convert_messages_for_native(&effective_messages, !self.merge_system_into_user);
+        if gemini_compat {
+            Self::flatten_tool_history_for_gemini(&mut native_messages);
+        }
         let native_request = NativeChatRequest {
             model: model.to_string(),
-            messages: Self::convert_messages_for_native(
-                &effective_messages,
-                !self.merge_system_into_user,
-            ),
+            messages: native_messages,
             temperature,
             stream: Some(false),
-            tool_choice: tools.as_ref().map(|_| "auto".to_string()),
+            tool_choice,
             tools,
         };
 
@@ -3093,5 +3218,113 @@ mod tests {
         assert_eq!(p.extra_headers.len(), 1);
         // Should not panic
         let _client = p.http_client();
+    }
+
+    #[test]
+    fn gemini_compat_activates_by_config_or_model_name() {
+        let explicit = OpenAiCompatibleProvider::new_custom_with_mode(
+            "custom",
+            "https://proxy.example.com",
+            Some("key"),
+            AuthStyle::Bearer,
+            true,
+            CompatibleApiMode::GeminiCompat,
+        );
+        assert!(explicit.needs_gemini_compat("any-model"));
+        assert!(explicit.needs_gemini_compat("gpt-4o"));
+
+        let auto = OpenAiCompatibleProvider::new_custom_with_mode(
+            "custom",
+            "https://proxy.example.com",
+            Some("key"),
+            AuthStyle::Bearer,
+            true,
+            CompatibleApiMode::OpenAiChatCompletions,
+        );
+        assert!(auto.needs_gemini_compat("gemini-2.5-flash"));
+        assert!(auto.needs_gemini_compat("gemini-2.5-pro"));
+        assert!(auto.needs_gemini_compat("google/gemini-2.5-flash"));
+        assert!(!auto.needs_gemini_compat("gpt-4o"));
+        assert!(!auto.needs_gemini_compat("claude-sonnet-4-6"));
+    }
+
+    #[test]
+    fn flatten_tool_history_converts_assistant_tool_calls_to_text() {
+        let mut messages = vec![
+            NativeMessage {
+                role: "assistant".to_string(),
+                content: Some(MessageContent::Text("thinking...".to_string())),
+                tool_call_id: None,
+                tool_calls: Some(vec![ToolCall {
+                    id: Some("call_1".to_string()),
+                    kind: Some("function".to_string()),
+                    function: Some(Function {
+                        name: Some("shell".to_string()),
+                        arguments: Some("{\"command\":\"ls\"}".to_string()),
+                    }),
+                    name: None,
+                    arguments: None,
+                    parameters: None,
+                }]),
+                reasoning_content: None,
+            },
+            NativeMessage {
+                role: "tool".to_string(),
+                content: Some(MessageContent::Text("file1.txt\nfile2.txt".to_string())),
+                tool_call_id: Some("call_1".to_string()),
+                tool_calls: None,
+                reasoning_content: None,
+            },
+        ];
+
+        OpenAiCompatibleProvider::flatten_tool_history_for_gemini(&mut messages);
+
+        assert_eq!(messages[0].role, "assistant");
+        assert!(messages[0].tool_calls.is_none());
+        let content = match &messages[0].content {
+            Some(MessageContent::Text(t)) => t.clone(),
+            _ => panic!("expected text content"),
+        };
+        assert!(content.contains("thinking..."));
+        assert!(content.contains("[Called tool `shell`"));
+
+        assert_eq!(messages[1].role, "user");
+        assert!(messages[1].tool_call_id.is_none());
+        let content = match &messages[1].content {
+            Some(MessageContent::Text(t)) => t.clone(),
+            _ => panic!("expected text content"),
+        };
+        assert!(content.contains("[Tool result]"));
+        assert!(content.contains("file1.txt"));
+    }
+
+    #[test]
+    fn sanitize_tools_for_gemini_cleans_schemas() {
+        let mut tools = vec![serde_json::json!({
+            "type": "function",
+            "function": {
+                "name": "test_tool",
+                "description": "A test tool",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "minLength": 1,
+                            "pattern": "^[a-z]+$"
+                        }
+                    },
+                    "additionalProperties": false
+                }
+            }
+        })];
+
+        OpenAiCompatibleProvider::sanitize_tools_for_gemini(&mut tools);
+
+        let params = &tools[0]["function"]["parameters"];
+        assert!(params.get("additionalProperties").is_none());
+        assert!(params["properties"]["name"].get("minLength").is_none());
+        assert!(params["properties"]["name"].get("pattern").is_none());
+        assert_eq!(params["properties"]["name"]["type"], "string");
     }
 }
