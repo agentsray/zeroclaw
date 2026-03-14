@@ -6,7 +6,8 @@
       "Bash(git add:*)",
       "Bash(git checkout:*)",
       "Bash(cargo check:*)",
-      "Bash(git reset:*)"
+      "Bash(git reset:*)",
+      "mcp__ctxfy__sdk_execute"
     ]
   }
 }

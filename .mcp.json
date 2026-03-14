@@ -1,0 +1,27 @@
+{
+  "mcpServers": {
+    "github": {
+      "type": "http",
+      "url": "https://api.githubcopilot.com/mcp"
+    },
+    "deepwiki": {
+      "type": "http",
+      "url": "https://mcp.deepwiki.com/mcp"
+    },
+    "google-developer-knowledge": {
+      "type": "http",
+      "url": "https://developerknowledge.googleapis.com/mcp",
+      "headers": {
+        "X-Goog-Api-Key": "AIzaSyB45_cbKbZXHpj8tc6KeYwofBiucETdKto"
+      }
+    },
+    "ctxfy": {
+      "type": "http",
+      "url": "http://mcp.ctxfy.com",
+      "headers": {
+        "X-Agent-Key": "cv_5b99040fdbaef65ccbc2dcca8366252ba6cc256c4c5703eade6826f49da67d88",
+        "X-Space-ID": "lk8V5Bj60TMIee01MAzMd0Ru"
+      }
+    }
+  }
+}

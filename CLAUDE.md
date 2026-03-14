@@ -1,4 +1,25 @@
-# CLAUDE.md — ZeroClaw
+# AGENT ENGINEERING PROTOCOL
+
+This file defines the default working protocol for coding agents in this repository.
+Scope: entire repository.
+
+---
+
+## PROJECT CONFIG
+
+```
+CTXFY_FACET_ALIAS=raycore
+```
+
+---
+
+## CORE PRINCIPLES
+
+- **Documentation first:** all code MUST be documented. Documentation MUST be updated in the Ctxfy facet when code changes.
+- **Test Driven Development:** all code MUST be tested. Tests MUST be updated when code changes.
+- **Observability first:** all code MUST have metrics and structured logging from day one.
+- **Minimal changes:** make focused, minimal changes. Do not refactor architecture without explicit instruction.
+- **English only:** all code documentation MUST be in English.
 
 ## Commands
 
