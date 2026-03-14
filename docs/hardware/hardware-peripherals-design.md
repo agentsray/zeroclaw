@@ -304,7 +304,6 @@ Simple JSON over serial for boards without gRPC support:
 
 ## 12. Related Documents
 
-- [adding-boards-and-tools.md](../contributing/adding-boards-and-tools.md) — How to add boards and datasheets
 - [network-deployment.md](../ops/network-deployment.md) — RPi and network deployment
 
 ## 13. References

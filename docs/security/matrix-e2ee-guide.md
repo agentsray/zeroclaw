@@ -138,4 +138,3 @@ After updating config, restart daemon and send a new message (not just old timel
 - [Operations log keyword appendix](../reference/api/channels-reference.md#7-operations-appendix-log-keywords-matrix)
 - [Network Deployment](../ops/network-deployment.md)
 - [Agnostic Security](./agnostic-security.md)
-- [Reviewer Playbook](../contributing/reviewer-playbook.md)

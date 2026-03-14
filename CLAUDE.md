@@ -46,7 +46,7 @@ Key extension points:
 - `src/tools/` — tool execution surface (shell, file, memory, browser)
 - `src/peripherals/` — hardware peripherals (STM32, RPi GPIO)
 - `src/runtime/` — runtime adapters (currently native)
-- `docs/` — topic-based documentation (setup-guides, reference, ops, security, hardware, contributing, maintainers)
+- `docs/` — topic-based documentation (setup-guides, reference, ops, security, hardware)
 - `.github/` — CI, templates, automation workflows
 
 ## Risk Tiers
@@ -69,8 +69,7 @@ When uncertain, classify as higher risk.
 Branch/commit/PR rules:
 - Work from a non-`master` branch. Open a PR to `master`; do not push directly.
 - Use conventional commit titles. Prefer small PRs (`size: XS/S/M`).
-- Follow `.github/pull_request_template.md` fully.
-- Never commit secrets, personal data, or real identity information (see `@docs/contributing/pr-discipline.md`).
+- Never commit secrets, personal data, or real identity information.
 
 ## Anti-Patterns
 
@@ -85,6 +84,10 @@ Branch/commit/PR rules:
 
 ## Linked References
 
-- `@docs/contributing/change-playbooks.md` — adding providers, channels, tools, peripherals; security/gateway changes; architecture boundaries
-- `@docs/contributing/pr-discipline.md` — privacy rules, superseded-PR attribution/templates, handoff template
-- `@docs/contributing/docs-contract.md` — docs system contract, i18n rules, locale parity
+- `docs/README.md` — docs hub
+- `docs/SUMMARY.md` — docs table of contents
+- `docs/reference/` — API and CLI reference docs
+- `docs/ops/` — operations runbook and troubleshooting
+- `docs/security/` — security guides and roadmap
+- `docs/hardware/` — hardware peripherals setup and design
+- `docs/setup-guides/` — bootstrap and channel setup guides

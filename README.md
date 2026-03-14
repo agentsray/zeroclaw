@@ -10,8 +10,8 @@
 </p>
 
 <p align="center">
-  <a href="LICENSE-APACHE"><img src="https://img.shields.io/badge/license-MIT%20OR%20Apache%202.0-blue.svg" alt="License: MIT OR Apache-2.0" /></a>
-  <a href="https://github.com/zeroclaw-labs/zeroclaw/graphs/contributors"><img src="https://img.shields.io/github/contributors/zeroclaw-labs/zeroclaw?color=green" alt="Contributors" /></a>
+  <img src="https://img.shields.io/badge/license-MIT%20OR%20Apache%202.0-blue.svg" alt="License: MIT OR Apache-2.0" />
+  <a href="https://github.com/agentsray/zeroclaw/graphs/contributors"><img src="https://img.shields.io/github/contributors/agentsray/zeroclaw?color=green" alt="Contributors" /></a>
   <a href="https://buymeacoffee.com/argenistherose"><img src="https://img.shields.io/badge/Buy%20Me%20a%20Coffee-Donate-yellow.svg?style=flat&logo=buy-me-a-coffee" alt="Buy Me a Coffee" /></a>
   <a href="https://x.com/zeroclawlabs?s=21"><img src="https://img.shields.io/badge/X-%40zeroclawlabs-000000?style=flat&logo=x&logoColor=white" alt="X: @zeroclawlabs" /></a>
   <a href="https://www.facebook.com/groups/zeroclaw"><img src="https://img.shields.io/badge/Facebook-Group-1877F2?style=flat&logo=facebook&logoColor=white" alt="Facebook Group" /></a>
@@ -21,44 +21,10 @@
 Built by students and members of the Harvard, MIT, and Sundai.Club communities.
 </p>
 
-<p align="center">
-  🌐 <strong>Languages:</strong>
-  <a href="README.md">🇺🇸 English</a> ·
-  <a href="README.zh-CN.md">🇨🇳 简体中文</a> ·
-  <a href="README.ja.md">🇯🇵 日本語</a> ·
-  <a href="README.ko.md">🇰🇷 한국어</a> ·
-  <a href="README.vi.md">🇻🇳 Tiếng Việt</a> ·
-  <a href="README.tl.md">🇵🇭 Tagalog</a> ·
-  <a href="README.es.md">🇪🇸 Español</a> ·
-  <a href="README.pt.md">🇧🇷 Português</a> ·
-  <a href="README.it.md">🇮🇹 Italiano</a> ·
-  <a href="README.de.md">🇩🇪 Deutsch</a> ·
-  <a href="README.fr.md">🇫🇷 Français</a> ·
-  <a href="README.ar.md">🇸🇦 العربية</a> ·
-  <a href="README.hi.md">🇮🇳 हिन्दी</a> ·
-  <a href="README.ru.md">🇷🇺 Русский</a> ·
-  <a href="README.bn.md">🇧🇩 বাংলা</a> ·
-  <a href="README.he.md">🇮🇱 עברית</a> ·
-  <a href="README.pl.md">🇵🇱 Polski</a> ·
-  <a href="README.cs.md">🇨🇿 Čeština</a> ·
-  <a href="README.nl.md">🇳🇱 Nederlands</a> ·
-  <a href="README.tr.md">🇹🇷 Türkçe</a> ·
-  <a href="README.uk.md">🇺🇦 Українська</a> ·
-  <a href="README.id.md">🇮🇩 Bahasa Indonesia</a> ·
-  <a href="README.th.md">🇹🇭 ไทย</a> ·
-  <a href="README.ur.md">🇵🇰 اردو</a> ·
-  <a href="README.ro.md">🇷🇴 Română</a> ·
-  <a href="README.sv.md">🇸🇪 Svenska</a> ·
-  <a href="README.el.md">🇬🇷 Ελληνικά</a> ·
-  <a href="README.hu.md">🇭🇺 Magyar</a> ·
-  <a href="README.fi.md">🇫🇮 Suomi</a> ·
-  <a href="README.da.md">🇩🇰 Dansk</a> ·
-  <a href="README.nb.md">🇳🇴 Norsk</a>
-</p>
 
 <p align="center">
   <a href="#quick-start">Getting Started</a> |
-  <a href="https://raw.githubusercontent.com/zeroclaw-labs/zeroclaw/master/install.sh">One-Click Setup</a> |
+  <a href="https://raw.githubusercontent.com/agentsray/zeroclaw/master/install.sh">One-Click Setup</a> |
   <a href="docs/README.md">Docs Hub</a> |
   <a href="docs/SUMMARY.md">Docs TOC</a>
 </p>
@@ -70,7 +36,6 @@ Built by students and members of the Harvard, MIT, and Sundai.Club communities.
   <a href="docs/ops/troubleshooting.md">Troubleshoot</a> ·
   <a href="docs/security/README.md">Security</a> ·
   <a href="docs/hardware/README.md">Hardware</a> ·
-  <a href="docs/contributing/README.md">Contribute</a>
 </p>
 
 <p align="center">
@@ -100,8 +65,8 @@ Use this board for important notices (breaking changes, security advisories, mai
 
 | Date (UTC) | Level       | Notice                                                                                                                                                                                                                                                                                                                                                 | Action                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | ---------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 2026-02-19 | _Critical_  | We are **not affiliated** with `openagen/zeroclaw`, `zeroclaw.org` or `zeroclaw.net`. The `zeroclaw.org` and `zeroclaw.net` domains currently points to the `openagen/zeroclaw` fork, and that domain/repository are impersonating our official website/project.                                                                                       | Do not trust information, binaries, fundraising, or announcements from those sources. Use only [this repository](https://github.com/zeroclaw-labs/zeroclaw) and our verified social accounts.                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| 2026-02-21 | _Important_ | Our official website is now live: [zeroclawlabs.ai](https://zeroclawlabs.ai). Thanks for your patience while we prepared the launch. We are still seeing impersonation attempts, so do **not** join any investment or fundraising activity claiming the ZeroClaw name unless it is published through our official channels.                            | Use [this repository](https://github.com/zeroclaw-labs/zeroclaw) as the single source of truth. Follow [X (@zeroclawlabs)](https://x.com/zeroclawlabs?s=21), [Facebook (Group)](https://www.facebook.com/groups/zeroclaw), and [Reddit (r/zeroclawlabs)](https://www.reddit.com/r/zeroclawlabs/) for official updates. |
+| 2026-02-19 | _Critical_  | We are **not affiliated** with `openagen/zeroclaw`, `zeroclaw.org` or `zeroclaw.net`. The `zeroclaw.org` and `zeroclaw.net` domains currently points to the `openagen/zeroclaw` fork, and that domain/repository are impersonating our official website/project.                                                                                       | Do not trust information, binaries, fundraising, or announcements from those sources. Use only [this repository](https://github.com/agentsray/zeroclaw) and our verified social accounts.                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| 2026-02-21 | _Important_ | Our official website is now live: [zeroclawlabs.ai](https://zeroclawlabs.ai). Thanks for your patience while we prepared the launch. We are still seeing impersonation attempts, so do **not** join any investment or fundraising activity claiming the ZeroClaw name unless it is published through our official channels.                            | Use [this repository](https://github.com/agentsray/zeroclaw) as the single source of truth. Follow [X (@zeroclawlabs)](https://x.com/zeroclawlabs?s=21), [Facebook (Group)](https://www.facebook.com/groups/zeroclaw), and [Reddit (r/zeroclawlabs)](https://www.reddit.com/r/zeroclawlabs/) for official updates. |
 | 2026-02-19 | _Important_ | Anthropic updated the Authentication and Credential Use terms on 2026-02-19. Claude Code OAuth tokens (Free, Pro, Max) are intended exclusively for Claude Code and Claude.ai; using OAuth tokens from Claude Free/Pro/Max in any other product, tool, or service (including Agent SDK) is not permitted and may violate the Consumer Terms of Service. | Please temporarily avoid Claude Code OAuth integrations to prevent potential loss. Original clause: [Authentication and Credential Use](https://code.claude.com/docs/en/legal-and-compliance#authentication-and-credential-use).                                                                                                                                                                                                                                                                                                                                                                                    |
 
 ### ✨ Features
@@ -218,7 +183,7 @@ Example sample (macOS arm64, measured on February 18, 2026):
 Or skip the steps above and install everything (system deps, Rust, ZeroClaw) in a single command:
 
 ```bash
-curl -LsSf https://raw.githubusercontent.com/zeroclaw-labs/zeroclaw/master/install.sh | bash
+curl -LsSf https://raw.githubusercontent.com/agentsray/zeroclaw/master/install.sh | bash
 ```
 
 #### Compilation resource requirements
@@ -262,7 +227,7 @@ brew install zeroclaw
 
 ```bash
 # Recommended: clone then run local bootstrap script
-git clone https://github.com/zeroclaw-labs/zeroclaw.git
+git clone https://github.com/agentsray/zeroclaw.git
 cd zeroclaw
 ./install.sh
 
@@ -291,7 +256,7 @@ ZEROCLAW_CONTAINER_CLI=podman ./install.sh --docker
 Remote one-liner (review first in security-sensitive environments):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/zeroclaw-labs/zeroclaw/master/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/agentsray/zeroclaw/master/install.sh | bash
 ```
 
 Details: [`docs/setup-guides/one-click-bootstrap.md`](docs/setup-guides/one-click-bootstrap.md) (toolchain mode may request `sudo` for system packages).
@@ -305,18 +270,18 @@ Release assets are published for:
 - Windows: `x86_64`
 
 Download the latest assets from:
-<https://github.com/zeroclaw-labs/zeroclaw/releases/latest>
+<https://github.com/agentsray/zeroclaw/releases/latest>
 
 Example (ARM64 Linux):
 
 ```bash
-curl -fsSLO https://github.com/zeroclaw-labs/zeroclaw/releases/latest/download/zeroclaw-aarch64-unknown-linux-gnu.tar.gz
+curl -fsSLO https://github.com/agentsray/zeroclaw/releases/latest/download/zeroclaw-aarch64-unknown-linux-gnu.tar.gz
 tar xzf zeroclaw-aarch64-unknown-linux-gnu.tar.gz
 install -m 0755 zeroclaw "$HOME/.cargo/bin/zeroclaw"
 ```
 
 ```bash
-git clone https://github.com/zeroclaw-labs/zeroclaw.git
+git clone https://github.com/agentsray/zeroclaw.git
 cd zeroclaw
 cargo build --release --locked
 cargo install --path . --force --locked
@@ -854,7 +819,7 @@ default_model = "qwen3-30b-a3b-8bit"
 
 ### Custom Provider Endpoints
 
-For detailed configuration of custom OpenAI-compatible and Anthropic-compatible endpoints, see [docs/contributing/custom-providers.md](docs/contributing/custom-providers.md).
+For detailed configuration of custom OpenAI-compatible and Anthropic-compatible endpoints, see the provider configuration in [docs/reference/api/providers-reference.md](docs/reference/api/providers-reference.md).
 
 ## Python Companion Package (`zeroclaw-tools`)
 
@@ -1105,20 +1070,13 @@ Start from the docs hub for a task-oriented map:
 - Channels reference: [`docs/reference/api/channels-reference.md`](docs/reference/api/channels-reference.md)
 - Operations runbook: [`docs/ops/operations-runbook.md`](docs/ops/operations-runbook.md)
 - Troubleshooting: [`docs/ops/troubleshooting.md`](docs/ops/troubleshooting.md)
-- Docs inventory/classification: [`docs/maintainers/docs-inventory.md`](docs/maintainers/docs-inventory.md)
-- PR/Issue triage snapshot (as of February 18, 2026): [`docs/maintainers/project-triage-snapshot-2026-02-18.md`](docs/maintainers/project-triage-snapshot-2026-02-18.md)
 
 Core collaboration references:
 
 - Documentation hub: [docs/README.md](docs/README.md)
-- Documentation template: [docs/contributing/doc-template.md](docs/contributing/doc-template.md)
 - Documentation change checklist: [docs/README.md#4-documentation-change-checklist](docs/README.md#4-documentation-change-checklist)
 - Channel configuration reference: [docs/reference/api/channels-reference.md](docs/reference/api/channels-reference.md)
 - Matrix encrypted-room operations: [docs/security/matrix-e2ee-guide.md](docs/security/matrix-e2ee-guide.md)
-- Contribution guide: [CONTRIBUTING.md](CONTRIBUTING.md)
-- PR workflow policy: [docs/contributing/pr-workflow.md](docs/contributing/pr-workflow.md)
-- Reviewer playbook (triage + deep review): [docs/contributing/reviewer-playbook.md](docs/contributing/reviewer-playbook.md)
-- Security disclosure policy: [SECURITY.md](SECURITY.md)
 
 For deployment and runtime operations:
 
@@ -1167,11 +1125,11 @@ Thank you to everyone who opened issues, reviewed PRs, translated docs, and help
 
 **This is the only official ZeroClaw repository:**
 
-> https://github.com/zeroclaw-labs/zeroclaw
+> https://github.com/agentsray/zeroclaw
 
-Any other repository, organization, domain, or package claiming to be "ZeroClaw" or implying affiliation with ZeroClaw Labs is **unauthorized and not affiliated with this project**. Known unauthorized forks will be listed in [TRADEMARK.md](docs/maintainers/trademark.md).
+Any other repository, organization, domain, or package claiming to be "ZeroClaw" or implying affiliation with ZeroClaw Labs is **unauthorized and not affiliated with this project**.
 
-If you encounter impersonation or trademark misuse, please [open an issue](https://github.com/zeroclaw-labs/zeroclaw/issues).
+If you encounter impersonation or trademark misuse, please [open an issue](https://github.com/agentsray/zeroclaw/issues).
 
 ---
 
@@ -1181,29 +1139,25 @@ ZeroClaw is dual-licensed for maximum openness and contributor protection:
 
 | License | Use case |
 |---|---|
-| [MIT](LICENSE-MIT) | Open-source, research, academic, personal use |
-| [Apache 2.0](LICENSE-APACHE) | Patent protection, institutional, commercial deployment |
-
-You may choose either license. **Contributors automatically grant rights under both** — see [CLA.md](docs/contributing/cla.md) for the full contributor agreement.
+You may choose either license. **Contributors automatically grant rights under both**.
 
 ### Trademark
 
-The **ZeroClaw** name and logo are trademarks of ZeroClaw Labs. This license does not grant permission to use them to imply endorsement or affiliation. See [TRADEMARK.md](docs/maintainers/trademark.md) for permitted and prohibited uses.
+The **ZeroClaw** name and logo are trademarks of ZeroClaw Labs. This license does not grant permission to use them to imply endorsement or affiliation.
 
 ### Contributor Protections
 
 - You **retain copyright** of your contributions
 - **Patent grant** (Apache 2.0) shields you from patent claims by other contributors
-- Your contributions are **permanently attributed** in commit history and [NOTICE](NOTICE)
+- Your contributions are **permanently attributed** in commit history
 - No trademark rights are transferred by contributing
 
 ## Contributing
 
-New to ZeroClaw? Look for issues labeled [`good first issue`](https://github.com/zeroclaw-labs/zeroclaw/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) — see our [Contributing Guide](CONTRIBUTING.md#first-time-contributors) for how to get started.
+New to ZeroClaw? Look for issues labeled [`good first issue`](https://github.com/agentsray/zeroclaw/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22).
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) and [CLA.md](docs/contributing/cla.md). Implement a trait, submit a PR:
+Implement a trait, submit a PR:
 
-- CI workflow guide: [docs/contributing/ci-map.md](docs/contributing/ci-map.md)
 - New `Provider` → `src/providers/`
 - New `Channel` → `src/channels/`
 - New `Observer` → `src/observability/`
@@ -1218,18 +1172,18 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) and [CLA.md](docs/contributing/cla.md). I
 
 ## Contributors
 
-<a href="https://github.com/zeroclaw-labs/zeroclaw/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=zeroclaw-labs/zeroclaw" alt="ZeroClaw contributors" />
+<a href="https://github.com/agentsray/zeroclaw/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=agentsray/zeroclaw" alt="ZeroClaw contributors" />
 </a>
 
 ## Star History
 
 <p align="center">
-  <a href="https://www.star-history.com/#zeroclaw-labs/zeroclaw&type=date&legend=top-left">
+  <a href="https://www.star-history.com/#agentsray/zeroclaw&type=date&legend=top-left">
     <picture>
-     <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=zeroclaw-labs/zeroclaw&type=date&theme=dark&legend=top-left" />
-     <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=zeroclaw-labs/zeroclaw&type=date&legend=top-left" />
-     <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=zeroclaw-labs/zeroclaw&type=date&legend=top-left" />
+     <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=agentsray/zeroclaw&type=date&theme=dark&legend=top-left" />
+     <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=agentsray/zeroclaw&type=date&legend=top-left" />
+     <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=agentsray/zeroclaw&type=date&legend=top-left" />
     </picture>
   </a>
 </p>

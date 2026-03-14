@@ -12,7 +12,7 @@ ZeroClaw supports these Z.AI aliases and endpoints out of the box:
 | `zai` | `https://api.z.ai/api/coding/paas/v4` | Global endpoint |
 | `zai-cn` | `https://open.bigmodel.cn/api/paas/v4` | China endpoint |
 
-If you need a custom base URL, see [`../contributing/custom-providers.md`](../contributing/custom-providers.md).
+If you need a custom base URL, see the provider reference at [`../reference/api/providers-reference.md`](../reference/api/providers-reference.md).
 
 ## Setup
 
@@ -138,5 +138,3 @@ curl -s "https://api.z.ai/api/coding/paas/v4/models" \
 ## Related Documentation
 
 - [ZeroClaw README](../README.md)
-- [Custom Provider Endpoints](../contributing/custom-providers.md)
-- [Contributing Guide](../../CONTRIBUTING.md)

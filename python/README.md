@@ -1,6 +1,6 @@
 # zeroclaw-tools
 
-Python companion package for [ZeroClaw](https://github.com/zeroclaw-labs/zeroclaw) — LangGraph-based tool calling for consistent LLM agent execution.
+Python companion package for [ZeroClaw](https://github.com/agentsray/zeroclaw) — LangGraph-based tool calling for consistent LLM agent execution.
 
 ## Why This Package?
 
@@ -151,4 +151,4 @@ Use **Rust ZeroClaw** for production edge deployments. Use **zeroclaw-tools** wh
 
 ## License
 
-MIT License — see [LICENSE](../LICENSE-MIT)
+MIT OR Apache-2.0
