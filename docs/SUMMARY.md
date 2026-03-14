@@ -3,6 +3,7 @@
 ## Project
 
 - [Vision](vision.md)
+- [Roadmap](roadmap.md)
 - [Open Questions](open-questions.md)
 
 ## Getting Started
